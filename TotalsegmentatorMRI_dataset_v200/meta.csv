@@ -1,0 +1,617 @@
+﻿image_id;split;age;gender;institute;study_type;manufacturer;scanner_model;slice_thickness;scanning_sequence;repetition_time;echo_time;magnetic_field_strength;source
+s0299;train;;;;;;;;;;;;
+s0001;train;;;C;unkown;ge;SIGNA Explorer;4.40;GR;0.01;0.00;1.50;idc
+s0300;train;;;C;unkown;ge;Signa HDxt;5.00;EP\SE;8.00;0.10;1.50;idc
+s0002;test;;;C;unkown;ge;Signa HDxt;6.00;SE;3.55;0.15;1.50;idc
+s0301;train;;;C;unkown;ge;SIGNA EXCITE;5.00;SE;0.55;0.01;1.50;idc
+s0302;train;;;C;unkown;ge;GENESIS_SIGNA;5.00;EP\RM;8.00;0.09;1.50;idc
+s0003;train;;;C;unkown;ge;Optima MR450w;5.00;EP\SE;8.00;0.10;1.50;idc
+s0004;train;;;C;unkown;ge;Signa HDxt;3.00;SE;2.43;0.11;1.50;idc
+s0303;train;;;C;unkown;ge;GENESIS_SIGNA;8.00;SE;1.22;0.12;1.50;idc
+s0304;train;;;C;unkown;ge;GENESIS_SIGNA;8.00;GR;0.20;0.00;1.50;idc
+s0305;train;;;C;unkown;ge;GENESIS_SIGNA;7.00;GR;0.23;0.00;1.50;idc
+s0005;train;;;C;unkown;ge;GENESIS_SIGNA;8.00;SE;1.53;0.16;1.50;idc
+s0006;train;;;C;unkown;ge;GENESIS_SIGNA;8.00;SE;2.12;0.09;1.50;idc
+s0306;train;;;C;unkown;ge;GENESIS_SIGNA;8.00;SE;1.53;0.16;1.50;idc
+s0307;train;;;C;unkown;ge;SIGNA EXCITE;8.00;SE;0.82;0.09;1.50;idc
+s0308;train;;;C;unkown;ge;GENESIS_SIGNA;5.00;GR;0.00;0.00;1.50;idc
+s0007;train;;;C;unkown;ge;GENESIS_SIGNA;8.00;GR;0.00;0.00;1.50;idc
+s0008;train;;;C;unkown;ge;SIGNA EXCITE;7.00;SE;0.65;0.01;1.50;idc
+s0309;test;;;C;unkown;ge;GENESIS_SIGNA;6.00;GR;0.01;0.00;1.50;idc
+s0009;train;;;C;unkown;ge;GENESIS_SIGNA;7.00;GR;0.21;0.00;1.50;idc
+s0010;train;;;C;unkown;ge;SIGNA EXCITE;3.00;GR;0.00;0.00;1.50;idc
+s0310;train;;;C;unkown;unkown;unkown;;unkown;;;;idc
+s0311;train;;;C;unkown;ge;SIGNA EXCITE;8.00;EP\SE;1.80;0.06;1.50;idc
+s0011;train;;;C;unkown;ge;SIGNA EXCITE;5.00;GR;0.00;0.00;1.50;idc
+s0312;train;;;C;unkown;ge;GENESIS_SIGNA;10.00;RM;0.07;0.00;1.50;idc
+s0313;train;;;C;unkown;ge;SIGNA EXCITE;5.00;RM;0.00;0.00;1.50;idc
+s0314;train;;;C;unkown;ge;SIGNA EXCITE;4.00;RM;0.00;0.00;1.50;idc
+s0315;train;;;C;unkown;ge;GENESIS_SIGNA;6.00;GR;0.15;0.00;1.50;idc
+s0012;train;;;C;unkown;ge;SIGNA EXCITE;5.00;RM;0.00;0.00;1.50;idc
+s0316;test;;;C;unkown;unkown;unkown;;unkown;;;;idc
+s0013;train;;;C;unkown;ge;GENESIS_SIGNA;10.00;RM;0.09;0.00;1.50;idc
+s0014;train;;;C;unkown;ge;SIGNA HDx;5.00;GR;0.00;0.00;1.50;idc
+s0317;train;;;C;unkown;ge;GENESIS_SIGNA;8.00;RM;0.09;0.00;1.50;idc
+s0318;train;;;C;unkown;ge;SIGNA EXCITE;5.00;GR;0.16;0.00;1.50;idc
+s0319;train;;;C;unkown;ge;GENESIS_SIGNA;6.00;GR;0.15;0.00;1.50;idc
+s0320;train;;;C;unkown;ge;SIGNA HDx;5.00;GR;0.00;0.00;1.50;idc
+s0015;test;;;C;unkown;ge;SIGNA EXCITE;3.00;RM;0.00;0.00;1.50;idc
+s0016;test;;;C;unkown;ge;SIGNA HDx;5.00;GR;0.00;0.00;1.50;idc
+s0321;train;;;C;unkown;ge;SIGNA EXCITE;3.00;RM;0.00;0.00;1.50;idc
+s0017;train;;;C;unkown;ge;SIGNA EXCITE;4.00;GR;0.00;0.00;1.50;idc
+s0322;train;;;C;unkown;ge;GENESIS_SIGNA;7.00;SE;2.50;0.09;1.50;idc
+s0323;test;;;C;unkown;ge;GENESIS_SIGNA;10.00;GR;0.10;0.00;1.50;idc
+s0324;train;;;C;unkown;ge;GENESIS_SIGNA;10.00;RM;0.07;0.00;1.50;idc
+s0325;train;;;C;unkown;ge;SIGNA EXCITE;5.00;GR;0.14;0.00;1.50;idc
+s0018;train;;;C;unkown;ge;SIGNA EXCITE;3.00;GR;0.01;0.00;1.50;idc
+s0326;train;;;C;unkown;ge;Signa HDxt;4.00;GR;0.01;0.00;1.50;idc
+s0019;train;;;C;unkown;philips;Achieva;6.00;GR;0.00;0.00;3.00;idc
+s0327;test;;;C;unkown;ge;SIGNA EXCITE;5.00;GR;0.28;0.00;1.50;idc
+s0020;train;;;C;unkown;ge;SIGNA EXCITE;5.00;GR;0.00;0.00;1.50;idc
+s0328;train;;;C;unkown;ge;SIGNA EXCITE;4.00;RM;0.00;0.00;1.50;idc
+s0329;train;;;C;unkown;ge;SIGNA EXCITE;8.00;RM;0.90;0.08;1.50;idc
+s0021;train;;;C;unkown;ge;SIGNA EXCITE;2.60;GR;0.00;0.00;1.50;idc
+s0022;train;;;C;unkown;ge;SIGNA EXCITE;8.00;GR;0.14;0.00;1.50;idc
+s0330;train;;;C;unkown;ge;SIGNA EXCITE;5.00;RM;0.07;0.00;1.50;idc
+s0023;train;;;C;unkown;ge;SIGNA EXCITE;4.00;GR;0.00;0.00;1.50;idc
+s0331;train;;;C;unkown;ge;SIGNA EXCITE;3.00;RM;0.00;0.00;3.00;idc
+s0332;train;;;C;unkown;ge;SIGNA EXCITE;8.00;GR;0.15;0.00;1.50;idc
+s0333;train;;;C;unkown;ge;SIGNA HDx;5.00;RM;0.00;0.00;1.50;idc
+s0334;train;;;C;unkown;ge;GENESIS_SIGNA;4.00;GR;0.01;0.00;1.50;idc
+s0024;test;;;C;unkown;ge;SIGNA EXCITE;5.00;RM;7.50;0.09;1.50;idc
+s0025;train;;;C;unkown;ge;SIGNA EXCITE;5.00;RM;0.00;0.00;1.50;idc
+s0335;train;;;C;unkown;philips;Intera;15.00;GR;0.01;0.00;1.50;idc
+s0336;train;;;C;unkown;ge;SIGNA EXCITE;8.00;GR;0.15;0.00;1.50;idc
+s0337;train;;;C;unkown;ge;SIGNA EXCITE;10.00;RM;0.07;0.00;1.50;idc
+s0338;train;;;C;unkown;philips;Intera;15.00;GR;0.01;0.00;1.50;idc
+s0026;train;;;C;unkown;ge;SIGNA EXCITE;4.40;RM;0.00;0.00;1.50;idc
+s0339;train;;;C;unkown;ge;SIGNA EXCITE;8.00;RM;0.89;0.08;1.50;idc
+s0340;train;;;C;unkown;ge;Signa HDxt;8.00;SE;2.00;0.08;1.50;idc
+s0341;train;;;C;unkown;philips;Intera;15.00;GR;0.01;0.00;1.50;idc
+s0342;test;;;C;unkown;ge;OPTIMA MR360;6.00;GR;0.14;0.00;1.50;idc
+s0343;train;;;C;unkown;philips;Intera;15.00;GR;0.01;0.00;1.50;idc
+s0027;test;;;C;unkown;philips;Ingenia;5.00;SE;0.52;0.02;1.50;idc
+s0028;train;;;C;unkown;ge;SIGNA EXCITE;5.00;RM;0.00;0.00;1.50;idc
+s0029;train;;;C;unkown;philips;Achieva;7.00;GR;0.00;0.00;1.50;idc
+s0344;train;;;C;unkown;ge;SIGNA EXCITE;5.00;GR;0.00;0.00;1.50;idc
+s0030;train;;;C;unkown;ge;OPTIMA MR360;6.00;GR;0.10;0.00;1.50;idc
+s0031;test;;;C;unkown;ge;SIGNA EXCITE;5.00;GR;0.12;0.00;1.50;idc
+s0345;train;;;C;unkown;philips;Intera;10.00;GR;0.02;0.00;1.50;idc
+s0346;train;;;C;unkown;ge;SIGNA HDx;4.00;RM;0.00;0.00;3.00;idc
+s0347;train;;;C;unkown;ge;Signa HDxt;3.00;GR;0.00;0.00;1.50;idc
+s0348;test;;;C;unkown;philips;Intera;6.00;SE;0.40;0.01;1.50;idc
+s0349;train;;;C;unkown;ge;GENESIS_SIGNA;10.00;GR;0.01;0.00;1.50;idc
+s0350;train;;;C;unkown;ge;SIGNA HDx;5.00;GR;0.18;0.00;1.50;idc
+s0351;train;;;C;unkown;philips;Ingenia;6.00;GR;0.00;0.00;1.50;idc
+s0352;train;;;C;unkown;philips;Achieva;15.00;GR;0.01;0.00;1.50;idc
+s0353;train;;;C;unkown;ge;SIGNA HDx;3.40;GR;0.00;0.00;1.50;idc
+s0032;train;;;C;unkown;ge;SIGNA EXCITE;3.00;RM;0.01;0.00;1.50;idc
+s0033;train;;;C;unkown;philips;Achieva;6.00;GR;0.00;0.00;3.00;idc
+s0354;train;;;C;unkown;ge;SIGNA EXCITE;3.00;SE;0.50;0.01;1.50;idc
+s0034;train;;;C;unkown;ge;DISCOVERY MR750;7.00;EP\SE;1.80;0.07;3.00;idc
+s0035;train;;;C;unkown;ge;DISCOVERY MR450;3.00;SE;1.20;0.10;1.50;idc
+s0036;train;;;C;unkown;philips;Achieva;8.00;GR;0.00;0.00;1.50;idc
+s0355;test;;;C;unkown;philips;Achieva;8.00;GR;0.00;0.00;1.50;idc
+s0037;train;;;C;unkown;philips;Achieva;7.00;GR;0.20;0.00;1.50;idc
+s0356;train;;;C;unkown;philips;Achieva;3.00;SE;16.55;0.09;3.00;idc
+s0038;test;;;C;unkown;philips;Achieva;2.00;GR;0.00;0.00;1.50;idc
+s0357;train;;;C;unkown;ge;SIGNA EXCITE;4.40;RM;0.00;0.00;1.50;idc
+s0358;train;;;C;unkown;philips;Achieva;7.00;GR;0.32;0.00;1.50;idc
+s0359;train;;;C;unkown;ge;Optima MR450w;5.00;GR;0.01;0.00;1.50;idc
+s0360;train;;;C;unkown;ge;Signa HDxt;3.40;GR;0.00;0.00;1.50;idc
+s0361;train;;;C;unkown;ge;DISCOVERY MR750;5.00;SE;1.11;0.08;3.00;idc
+s0362;train;;;C;unkown;ge;SIGNA EXCITE;7.00;RM;0.00;0.00;1.50;idc
+s0363;train;;;C;unkown;ge;DISCOVERY MR750;5.00;GR;0.00;0.00;3.00;idc
+s0039;train;;;C;unkown;ge;Signa HDxt;8.00;SE;0.88;0.08;1.50;idc
+s0364;train;;;C;unkown;ge;SIGNA EXCITE;7.00;GR;0.20;0.00;1.50;idc
+s0365;train;;;C;unkown;ge;Signa HDxt;5.00;EP\SE;5.00;0.08;1.50;idc
+s0040;train;;;C;unkown;ge;Optima MR450w;8.00;SE;0.55;0.08;1.50;idc
+s0366;train;;;C;unkown;ge;DISCOVERY MR750;7.00;EP\SE;4.26;0.04;3.00;idc
+s0041;train;;;C;unkown;ge;Optima MR450w;4.00;GR;0.00;0.00;1.50;idc
+s0042;test;;;C;unkown;ge;Signa HDxt;4.00;GR;0.00;0.00;1.50;idc
+s0043;train;;;C;unkown;ge;SIGNA EXCITE;4.00;SE;0.40;0.01;1.50;idc
+s0044;train;;;C;unkown;ge;Signa HDxt;5.00;SE;0.63;0.01;1.50;idc
+s0045;train;;;C;unkown;ge;Signa HDxt;5.00;GR;0.01;0.00;1.50;idc
+s0046;train;;;C;unkown;ge;Signa HDxt;6.00;SE;0.50;0.01;1.50;idc
+s0047;train;;;C;unkown;ge;Signa HDxt;7.00;IR;6.22;0.04;1.50;idc
+s0367;test;;;C;unkown;unkown;unkown;;unkown;;;;idc
+s0368;train;53.00;f;B;mri head;siemens;SymphonyTim;1.00;['GR', 'IR'];2700.00;4.95;1.50;usb
+s0369;train;68.00;m;B;mri elbow;siemens;Espree;4.00;SE;3250.00;64.00;1.50;usb
+s0370;train;99.00;f;B;mri cervical spine;siemens;Avanto;3.00;SE;4530.00;104.00;1.50;usb
+s0371;train;82.00;m;B;mri neck;siemens;Avanto;4.00;SE;4130.00;63.00;1.50;usb
+s0372;train;48.00;f;B;mri breast;siemens;Espree;4.00;SE;615.00;11.00;1.50;usb
+s0048;train;58.00;f;B;mri breast biopsy;siemens;Espree;2.00;GR;14.00;4.76;1.50;usb
+s0373;train;74.00;f;B;mri breast;siemens;Espree;4.00;SE;718.00;11.00;1.50;usb
+s0374;train;65.00;m;D;mri leg;siemens;Verio;3.00;SE;3500.00;76.00;3.00;usb
+s0375;train;69.00;m;B;mri lumbar spine;siemens;Avanto;4.00;SE;4520.00;104.00;1.50;usb
+s0376;train;71.00;m;B;mri wrist;siemens;SymphonyTim;3.00;SE;5020.00;76.00;1.50;usb
+s0049;train;50.00;f;B;mri cervical spine;siemens;Espree;3.00;SE;3370.00;107.00;1.50;usb
+s0377;train;68.00;m;B;mri cervical spine;siemens;Avanto;3.00;SE;4530.00;104.00;1.50;usb
+s0050;train;57.00;f;C;mri cervical spine;ge;SIGNA EXCITE;3.00;SE;6000.00;113.78;3.00;usb
+s0378;train;63.00;f;B;mri neck;siemens;Avanto;4.00;SE;4130.00;63.00;1.50;usb
+s0379;train;63.00;f;B;mri knee;siemens;Espree;4.00;['SE', 'IR'];5360.00;51.00;1.50;usb
+s0380;train;63.00;f;B;mri knee;siemens;Avanto;4.00;SE;4400.00;96.00;1.50;usb
+s0381;train;88.00;f;B;mri breast;siemens;Espree;4.00;['SE', 'IR'];6440.00;72.00;1.50;usb
+s0382;train;41.00;f;B;mri sacrum-isg;siemens;Avanto;4.00;['SE', 'IR'];5010.00;78.00;1.50;usb
+s0383;train;85.00;f;D;mri cervical spine;siemens;Verio;3.00;SE;3000.00;103.00;3.00;usb
+s0051;train;44.00;m;B;mri knee;siemens;Espree;4.00;['SE', 'IR'];5360.00;51.00;1.50;usb
+s0384;train;71.00;f;B;mri lower limb both;siemens;SymphonyTim;1.60;GR;2.49;0.99;1.50;usb
+s0385;test;48.00;f;B;mri spine;siemens;Avanto;3.00;SE;400.00;11.00;1.50;usb
+s0052;train;58.00;f;B;mri breast;siemens;Skyra;0.90;GR;8.03;3.56;3.00;usb
+s0386;train;51.00;f;D;mri cervical spine;philips;Achieva;3.00;SE;1569.46;90.00;3.00;usb
+s0387;train;58.00;m;B;mri cervical spine;siemens;Espree;3.00;SE;3230.00;107.00;1.50;usb
+s0388;train;88.00;m;B;mri head;siemens;Espree;3.00;SE;4700.00;106.00;1.50;usb
+s0389;train;62.00;m;B;mri hip;siemens;Skyra;3.00;SE;1900.00;35.00;3.00;usb
+s0053;train;76.00;f;B;mri knee;siemens;Espree;4.00;['SE', 'IR'];5640.00;51.00;1.50;usb
+s0390;train;62.00;f;B;mri sacrum-isg;siemens;Skyra;4.00;SE;672.00;10.00;3.00;usb
+s0391;train;67.00;m;B;mri knee;siemens;Verio;3.00;SE;6250.00;88.00;3.00;usb
+s0392;train;48.00;m;B;mri knee;siemens;Skyra;4.00;SE;4000.00;82.00;3.00;usb
+s0393;train;80.00;m;B;mri neck;siemens;Espree;4.00;SE;5311.00;65.00;1.50;usb
+s0394;train;87.00;f;B;mri spine;siemens;Verio;3.00;SE;3200.00;103.00;3.00;usb
+s0395;test;61.00;f;B;mri shoulder;siemens;Skyra;3.00;SE;3800.00;74.00;3.00;usb
+s0396;train;42.00;m;B;mri knee;siemens;Espree;4.00;['SE', 'IR'];6500.00;51.00;1.50;usb
+s0397;test;61.00;m;B;mri neck;siemens;Espree;4.00;SE;674.00;13.00;1.50;usb
+s0398;test;55.00;m;B;mri upper leg;siemens;Skyra;5.00;SE;555.00;12.00;3.00;usb
+s0399;train;77.00;m;B;mri thoracic spine;siemens;Verio;3.00;SE;3850.00;109.00;3.00;usb
+s0400;train;90.00;m;B;mri lumbar spine;siemens;Skyra;4.00;SE;3500.00;99.00;3.00;usb
+s0401;train;41.00;f;B;mri spine;siemens;Avanto;3.00;SE;4440.00;102.00;1.50;usb
+s0402;train;93.00;f;B;mri head;siemens;Espree;3.00;SE;6400.00;103.00;1.50;usb
+s0403;train;61.00;f;D;mri spine;siemens;MAGNETOM_ESSENZA;3.00;SE;3500.00;74.00;1.50;usb
+s0404;train;68.00;f;B;mri breast;siemens;Skyra;3.00;SE;5090.00;72.00;3.00;usb
+s0405;train;73.00;f;B;mri ankle;siemens;Skyra;3.00;SE;4840.00;69.00;3.00;usb
+s0054;train;64.00;m;B;mri head;siemens;Verio;3.00;SE;4170.00;88.00;3.00;usb
+s0406;train;70.00;f;B;mri sacrum-isg;siemens;Skyra;4.00;SE;5900.00;90.00;3.00;usb
+s0055;train;36.00;m;C;mri head;siemens;Skyra;1.00;['GR', 'IR'];2300.00;2.26;3.00;usb
+s0056;test;38.00;f;B;mri knee;siemens;Espree;3.00;SE;2300.00;34.00;1.50;usb
+s0057;train;62.00;f;D;mri lower leg;siemens;Avanto_fit;6.00;SE;4940.00;92.00;1.50;usb
+s0407;train;41.00;m;B;mri head;siemens;Espree;1.00;['GR', 'IR'];2700.00;4.93;1.50;usb
+s0058;train;91.00;m;B;mri shoulder;siemens;Prisma;2.00;SE;5570.00;34.00;3.00;usb
+s0059;train;78.00;m;B;mri aorta;siemens;Skyra;1.20;GR;3.08;1.05;3.00;usb
+s0060;train;76.00;f;B;mri hip;siemens;Skyra;5.00;SE;758.00;13.00;3.00;usb
+s0061;train;79.00;m;C;mri head;siemens;Verio;1.00;['GR', 'IR'];2000.00;3.37;3.00;usb
+s0062;train;41.00;f;C;mri cervical spine;siemens;Verio;3.00;SE;560.00;9.60;3.00;usb
+s0408;train;77.00;f;B;mri upper leg both;siemens;Avanto;6.00;SE;669.00;12.00;1.50;usb
+s0063;train;76.00;m;C;mri knee;philips;Achieva;3.00;SE;3423.82;30.00;1.50;usb
+s0064;train;55.00;m;B;mri plexus lumbalis;siemens;Skyra;1.50;GR;4.21;2.58;3.00;usb
+s0409;train;84.00;f;B;mri lumbar spine;siemens;Avanto;5.00;['SE', 'IR'];3500.00;66.00;1.50;usb
+s0410;train;48.00;f;B;mri head;siemens;Verio;3.00;['SE', 'IR'];8000.00;77.00;3.00;usb
+s0411;train;40.00;m;B;mri spine;siemens;Skyra;3.00;SE;3500.00;105.00;3.00;usb
+s0412;train;67.00;f;B;mri cervical spine;siemens;Skyra;3.00;SE;4000.00;90.00;3.00;usb
+s0413;train;57.00;m;D;mri upper limb;siemens;MAGNETOM_ESSENZA;3.00;SE;504.00;13.00;1.50;usb
+s0065;train;36.00;f;B;mri cervical spine;siemens;Skyra;3.00;SE;3500.00;106.00;3.00;usb
+s0066;train;53.00;f;B;mri breast;siemens;Skyra;3.00;SE;3820.00;72.00;3.00;usb
+s0414;test;52.00;m;B;mri spine;siemens;Avanto;3.00;SE;400.00;12.00;1.50;usb
+s0415;train;36.00;f;B;mri knee;siemens;Prisma;1.00;GR;12.37;4.26;3.00;usb
+s0416;train;82.00;m;B;mri heart;siemens;Skyra;1.20;GR;3.08;1.05;3.00;usb
+s0067;train;61.00;m;C;mri knee;siemens;Prisma;3.00;SE;3000.00;27.00;3.00;usb
+s0417;train;36.00;m;B;mri cervical spine;siemens;Prisma;3.00;SE;3500.00;106.00;3.00;usb
+s0418;train;56.00;f;B;mri breast;siemens;Skyra_fit;3.00;SE;4180.00;72.00;3.00;usb
+s0419;train;48.00;m;B;mri shoulder;siemens;Avanto;1.80;GR;16.00;7.14;1.50;usb
+s0420;train;71.00;f;B;mri breast;siemens;Skyra;3.00;SE;3820.00;72.00;3.00;usb
+s0068;train;66.00;f;D;mri lower limb;siemens;MAGNETOM_ESSENZA;3.00;SE;3000.00;27.00;1.50;usb
+s0421;train;58.00;m;B;mri cervical spine;siemens;Avanto_fit;2.00;SE;421.00;13.00;1.50;usb
+s0422;train;68.00;f;B;mri achilles tendon;siemens;Skyra;8.00;SE;600.00;13.00;3.00;usb
+s0423;train;58.00;f;B;mri heart;unkown;unkown;;unkown;;;;idc
+s0424;train;50.00;f;B;mri lumbar spine;siemens;Skyra;4.00;SE;4770.00;106.00;3.00;usb
+s0425;train;79.00;f;B;mri head;siemens;Avanto_fit;1.00;['GR', 'IR'];2200.00;4.52;1.50;usb
+s0069;train;82.00;f;C;mri wrist;philips;Achieva;2.50;IR;2904.53;60.00;1.50;usb
+s0426;train;78.00;f;C;mri lower leg;philips;Panorama HFO;6.00;SE;2990.26;100.00;1.00;usb
+s0070;train;52.00;m;B;mri head;siemens;Avanto_fit;3.00;['SE', 'IR'];9000.00;113.00;1.50;usb
+s0427;train;93.00;m;B;mri head;siemens;Skyra;3.00;SE;7180.00;95.00;3.00;usb
+s0428;train;51.00;f;B;mri cervical spine;siemens;Skyra;3.00;SE;3500.00;106.00;3.00;usb
+s0429;train;66.00;f;B;mri breast biopsy;siemens;Avanto_fit;3.00;SE;6350.00;69.00;1.50;usb
+s0430;train;89.00;f;B;mri hip;siemens;Skyra;5.00;SE;758.00;13.00;3.00;usb
+s0071;train;65.00;f;B;mri spine;siemens;Avanto_fit;3.00;SE;3900.00;82.00;1.50;usb
+s0431;train;91.00;f;A;mri wrist;ge;DISCOVERY MR750w;3.00;SE;636.00;10.90;3.00;usb
+s0072;train;59.00;m;C;mri upper arm;siemens;Espree;3.30;SE;3680.00;97.00;1.50;usb
+s0432;train;59.00;f;B;mri breast;siemens;Skyra_fit;3.00;SE;3820.00;72.00;3.00;usb
+s0073;train;44.00;f;B;mri breast biopsy;siemens;Avanto_fit;3.00;SE;6350.00;69.00;1.50;usb
+s0433;train;51.00;f;B;mri spine;siemens;Avanto_fit;4.00;SE;598.00;11.00;1.50;usb
+s0434;train;60.00;f;B;mri heart;unkown;unkown;;unkown;;;;idc
+s0074;train;63.00;f;B;mri breast;siemens;Skyra_fit;3.00;SE;3820.00;72.00;3.00;usb
+s0435;train;69.00;m;B;mri heart;unkown;unkown;;unkown;;;;idc
+s0436;train;54.00;m;D;mri lower limb;siemens;MAGNETOM_ESSENZA;3.00;SE;3170.00;27.00;1.50;usb
+s0075;train;57.00;f;B;mri knee;siemens;Avanto_fit;4.00;['SE', 'IR'];3500.00;48.00;1.50;usb
+s0437;train;58.00;m;B;mri shoulder;siemens;Skyra;2.00;SE;4660.00;34.00;3.00;usb
+s0438;train;80.00;f;B;mri wrist;siemens;Skyra;1.50;SE;2800.00;38.00;3.00;usb
+s0439;train;81.00;m;B;mri heart;unkown;unkown;;unkown;;;;idc
+s0440;train;76.00;m;B;mri knee;siemens;Avanto_fit;3.50;SE;4800.00;34.00;1.50;usb
+s0441;train;72.00;m;B;mri lower leg;siemens;Avanto_fit;5.00;SE;5210.00;60.00;1.50;usb
+s0076;train;83.00;m;B;mri elbow;siemens;Skyra;3.00;SE;655.00;11.00;3.00;usb
+s0442;train;61.00;f;B;mri knee;siemens;Skyra_fit;1.50;GR;12.37;4.26;3.00;usb
+s0443;train;79.00;f;A;mri shoulder;ge;DISCOVERY MR750w;3.20;SE;6056.89;74.05;3.00;usb
+s0444;train;33.00;f;B;mri knee;siemens;Avanto_fit;4.00;['SE', 'IR'];3500.00;48.00;1.50;usb
+s0077;train;69.00;f;D;mri breast;siemens;Avanto_fit;1.70;SE;1500.00;101.00;1.50;usb
+s0445;train;62.00;f;D;mri cervical spine;siemens;Avanto_fit;3.00;SE;5310.00;104.00;1.50;usb
+s0446;train;54.00;f;D;mri knee;philips;Achieva dStream;2.50;SE;2219.60;30.00;3.00;usb
+s0447;test;74.00;m;B;mri heart;siemens;Avanto_fit;1.17;GR;3.06;1.04;1.50;usb
+s0078;test;41.00;m;B;mri hand both;siemens;Skyra_fit;3.00;SE;728.00;10.00;3.00;usb
+s0448;train;69.00;m;C;mri thoracic spine;ge;DISCOVERY MR750w;4.00;['SE', 'IR'];2446.88;18.64;3.00;usb
+s0449;train;66.00;f;D;mri elbow;philips;Intera;2.20;GR;17.72;11.51;1.50;usb
+s0450;train;58.00;m;D;mri knee;siemens;Avanto_fit;3.00;SE;2500.00;35.00;1.50;usb
+s0451;train;69.00;f;B;mri head-neck;siemens;Avanto_fit;3.00;SE;4030.00;78.00;1.50;usb
+s0079;train;55.00;m;D;mri lower limb;siemens;MAGNETOM_ESSENZA;3.00;SE;3000.00;27.00;1.50;usb
+s0452;train;68.00;f;C;mri upper limb;siemens;MAGNETOM_ESSENZA;3.00;SE;504.00;13.00;1.50;usb
+s0453;train;71.00;f;B;mri heart;unkown;unkown;;unkown;;;;idc
+s0080;train;52.00;f;B;mri knee;siemens;Skyra;3.00;SE;696.00;9.60;3.00;usb
+s0454;train;57.00;f;D;mri lower leg;siemens;Avanto_fit;5.00;SE;400.00;12.00;1.50;usb
+s0081;train;42.00;m;D;mri knee;siemens;Avanto;3.00;SE;3731.80;43.00;1.50;usb
+s0082;train;44.00;m;B;mri knee;siemens;Prisma;3.00;SE;3340.00;40.00;3.00;usb
+s0455;train;63.00;m;D;mri cervical spine;siemens;Avanto_fit;4.00;['SE', 'IR'];5300.00;70.00;1.50;usb
+s0083;train;48.00;m;A;mri knee;ge;SIGNA Pioneer;3.00;SE;499.00;15.36;3.00;usb
+s0084;train;88.00;m;B;mri leg;siemens;Skyra;3.00;SE;5300.00;85.00;3.00;usb
+s0085;train;66.00;m;B;mri upper leg;siemens;Avanto_fit;3.00;SE;701.00;11.00;1.50;usb
+s0086;train;65.00;f;A;mri achilles tendon;ge;DISCOVERY MR750w;3.00;SE;6767.00;64.94;3.00;usb
+s0456;train;86.00;f;B;mri breast;siemens;Skyra_fit;3.00;SE;3820.00;72.00;3.00;usb
+s0457;train;83.00;m;B;mri elbow;siemens;Skyra;3.00;SE;668.00;11.00;3.00;usb
+s0458;test;57.00;f;D;mri ankle;siemens;Skyra;3.00;['SE', 'IR'];4000.00;38.00;3.00;usb
+s0087;train;37.00;m;B;mri knee;siemens;Avanto_fit;3.00;SE;2930.00;35.00;1.50;usb
+s0459;test;76.00;f;B;mri sacrum-isg;siemens;Skyra;3.00;SE;3800.00;101.00;3.00;usb
+s0460;train;67.00;m;A;mri head-neck;ge;DISCOVERY MR750w;2.60;GR;3.81;1.67;3.00;usb
+s0461;train;32.00;f;B;mri wrist;siemens;Skyra_fit;0.40;GR;17.00;5.67;3.00;usb
+s0462;train;76.00;m;B;mri lumbar spine;siemens;Avanto_fit;4.00;SE;5070.00;100.00;1.50;usb
+s0463;train;39.00;f;D;mri upper leg;philips;Ingenia;5.00;SE;4149.24;60.00;3.00;usb
+s0088;train;28.00;f;D;mri thoracic spine;siemens;Skyra;3.00;SE;4000.00;93.00;3.00;usb
+s0464;train;84.00;m;C;mri head;siemens;Skyra_fit;1.00;['GR', 'IR'];2300.00;2.26;3.00;usb
+s0465;train;56.00;f;B;mri breast;siemens;Skyra_fit;3.50;SE;5090.00;72.00;3.00;usb
+s0466;train;55.00;f;C;mri heart;siemens;Avanto_fit;8.00;SE;749.00;27.00;1.50;usb
+s0467;train;76.00;f;B;mri head;siemens;Skyra;1.00;['GR', 'IR'];2300.00;2.25;3.00;usb
+s0468;train;56.00;f;C;mri heart;unkown;unkown;;unkown;;;;idc
+s0469;train;79.00;m;B;mri heart;siemens;Avanto_fit;1.17;GR;3.06;1.04;1.50;usb
+s0089;train;25.00;f;B;mri knee;siemens;Skyra;3.00;SE;696.00;9.60;3.00;usb
+s0470;train;85.00;f;B;mri breast;siemens;Skyra_fit;3.00;SE;4360.00;72.00;3.00;usb
+s0471;train;64.00;m;B;mri heart;unkown;unkown;;unkown;;;;idc
+s0472;train;55.00;f;D;dummy;siemens;Aera;3.00;SE;2800.00;25.00;1.50;usb
+s0473;train;72.00;f;B;mri shoulder;siemens;Avanto_fit;3.00;SE;3180.00;67.00;1.50;usb
+s0474;train;89.00;f;B;mri head;siemens;Skyra_fit;1.00;['GR', 'IR'];2300.00;3.02;3.00;usb
+s0090;train;58.00;f;D;mri upper limb;siemens;Aera;3.00;SE;431.00;12.00;1.50;usb
+s0091;train;74.00;m;B;mri ankle;siemens;Avanto_fit;3.00;SE;3980.00;79.00;1.50;usb
+s0092;train;71.00;m;B;mri heart;siemens;Skyra_fit;8.00;SE;871.00;49.00;3.00;usb
+s0475;train;38.00;m;A;mri knee;ge;SIGNA Pioneer;1.20;GR;30.00;13.63;3.00;usb
+s0093;train;55.00;f;B;mri breast;siemens;Skyra_fit;3.00;SE;3820.00;72.00;3.00;usb
+s0094;train;35.00;m;A;mri achilles tendon;ge;SIGNA Pioneer;4.00;SE;6826.00;100.41;3.00;usb
+s0476;train;82.00;m;A;mri head;ge;SIGNA Pioneer;1.20;['SE', 'IR'];6502.00;145.04;3.00;usb
+s0477;train;30.00;m;B;mri cervical spine;siemens;Avanto_fit;3.00;SE;4270.00;95.00;1.50;usb
+s0478;train;75.00;m;B;mri heart;siemens;Avanto_fit;3.00;GR;6.68;2.39;1.50;usb
+s0479;train;79.00;m;B;mri heart;siemens;Skyra_fit;3.00;GR;4.00;1.24;3.00;usb
+s0480;test;45.00;f;B;mri finger;siemens;Skyra;2.00;SE;4460.00;63.00;3.00;usb
+s0481;train;74.00;m;B;mri heart;siemens;Skyra;1.10;GR;2.99;1.06;3.00;usb
+s0095;train;70.00;f;D;mri head;philips;Ingenia;3.00;SE;3587.27;80.00;3.00;usb
+s0096;train;42.00;m;B;mri heart;siemens;Avanto_fit;3.00;GR;6.68;2.39;1.50;usb
+s0482;train;56.00;m;A;mri achilles tendon;ge;DISCOVERY MR750w;4.00;['SE', 'IR'];7945.00;41.25;3.00;usb
+s0097;train;59.00;f;B;mri leg;siemens;Skyra_fit;3.00;SE;4060.00;70.00;3.00;usb
+s0098;train;41.00;m;A;mri leg;ge;SIGNA Pioneer;3.00;SE;615.00;16.14;3.00;usb
+s0099;train;52.00;f;B;mri plexus lumbalis;siemens;Skyra;4.00;SE;3500.00;95.00;3.00;usb
+s0100;test;45.00;f;C;mri lumbar spine;siemens;Skyra;4.00;SE;2800.00;98.00;3.00;usb
+s0483;train;26.00;f;B;mri thoracic spine;siemens;Skyra_fit;3.00;SE;7910.00;101.00;3.00;usb
+s0484;train;50.00;f;D;mri thoracic spine;siemens;Skyra;3.00;SE;2800.00;90.00;3.00;usb
+s0485;train;56.00;m;B;mri heart;siemens;Avanto_fit;1.17;GR;3.06;1.04;1.50;usb
+s0486;train;52.00;f;C;mri wrist;siemens;Skyra;3.00;SE;3160.00;33.00;3.00;usb
+s0487;train;85.00;f;B;mri spine;siemens;Avanto_fit;3.10;SE;7670.00;81.00;1.50;usb
+s0488;train;33.00;f;B;mri knee;siemens;Skyra;3.00;SE;4340.00;41.00;3.00;usb
+s0489;train;44.00;f;B;mri sacrum-isg;siemens;Avanto_fit;3.00;SE;770.00;10.00;1.50;usb
+s0490;train;60.00;m;B;mri spine;siemens;Avanto_fit;2.00;SE;440.00;12.00;1.50;usb
+s0491;train;67.00;f;B;mri head;siemens;Skyra_fit;1.00;['GR', 'IR'];1800.00;2.43;3.00;usb
+s0492;train;73.00;m;B;mri cervical spine;siemens;Avanto_fit;3.00;SE;529.00;8.00;1.50;usb
+s0493;train;25.00;f;B;mri spine;siemens;Avanto_fit;3.00;SE;4270.00;95.00;1.50;usb
+s0494;train;78.00;m;B;mri cervical spine;siemens;Skyra;3.00;SE;3500.00;106.00;3.00;usb
+s0495;train;67.00;f;B;mri spine;siemens;Avanto_fit;5.00;SE;5580.00;91.00;1.50;usb
+s0496;train;46.00;m;D;mri lower limb;siemens;Aera;3.00;SE;3200.00;25.00;1.50;usb
+s0101;train;33.00;m;D;mri lower limb;siemens;Aera;3.00;['SE', 'IR'];3500.00;38.00;1.50;usb
+s0497;train;53.00;f;B;mri breast;siemens;Skyra_fit;3.00;SE;8160.00;88.00;3.00;usb
+s0102;train;60.00;m;B;mri leg;siemens;Skyra;3.00;SE;5280.00;85.00;3.00;usb
+s0498;train;65.00;m;B;mri heart;siemens;Avanto_fit;3.00;GR;6.68;2.39;1.50;usb
+s0103;train;40.00;m;B;mri knee;siemens;Skyra;3.00;SE;3570.00;40.00;3.00;usb
+s0499;train;59.00;f;B;mri lumbar spine;siemens;Avanto_fit;6.00;SE;769.00;11.00;1.50;usb
+s0104;train;61.00;m;B;mri spine;siemens;Avanto_fit;3.30;SE;4270.00;95.00;1.50;usb
+s0500;train;79.00;f;B;mri thoracic spine;siemens;Avanto_fit;4.00;SE;5180.00;89.00;1.50;usb
+s0501;test;28.00;f;B;mri cervical spine;siemens;Skyra_fit;3.00;SE;4000.00;90.00;3.00;usb
+s0105;test;39.00;m;B;mri knee;siemens;Prisma;3.00;SE;3570.00;40.00;3.00;usb
+s0502;train;52.00;m;D;mri knee;siemens;Skyra;3.00;SE;5000.00;88.00;3.00;usb
+s0503;train;46.00;f;A;mri knee;ge;SIGNA Pioneer;3.00;SE;3000.00;33.41;3.00;usb
+s0504;train;53.00;m;B;mri heart;siemens;Avanto_fit;3.00;GR;6.68;2.39;1.50;usb
+s0505;test;68.00;f;B;mri heart;siemens;Skyra;1.20;GR;2.99;1.06;3.00;usb
+s0506;train;60.00;m;A;mri cervical spine;ge;SIGNA Pioneer;1.40;SE;1102.00;113.82;3.00;usb
+s0507;train;70.00;f;B;mri wrist;siemens;Skyra;1.00;GR;17.00;5.67;3.00;usb
+s0106;train;62.00;f;B;mri hip;siemens;Skyra_fit;5.00;SE;758.00;13.00;3.00;usb
+s0107;train;65.00;m;A;mri cervical spine;ge;DISCOVERY MR750w;1.40;SE;1202.00;96.46;3.00;usb
+s0108;train;46.00;f;B;mri spine;siemens;Avanto_fit;3.00;SE;781.00;9.50;1.50;usb
+s0109;train;69.00;f;B;mri breast;siemens;Skyra_fit;3.00;SE;8680.00;88.00;3.00;usb
+s0508;train;61.00;f;B;mri head;siemens;Skyra;2.50;SE;3990.00;75.00;3.00;usb
+s0509;train;43.00;f;B;mri spine;siemens;Avanto_fit;3.00;SE;675.00;9.50;1.50;usb
+s0510;train;71.00;m;B;mri finger;siemens;Avanto_fit;3.50;SE;450.00;9.00;1.50;usb
+s0110;train;65.00;f;A;mri cervical spine;ge;DISCOVERY MR750w;3.00;SE;3500.00;117.66;3.00;usb
+s0511;train;54.00;m;B;mri heart;siemens;Skyra;1.10;GR;2.99;1.06;3.00;usb
+s0111;train;32.00;m;B;mri wrist;siemens;Avanto_fit;3.00;SE;653.00;6.70;1.50;usb
+s0512;train;65.00;f;B;mri cervical spine;siemens;Avanto_fit;3.00;SE;746.00;9.50;1.50;usb
+s0513;train;66.00;f;A;mri leg;ge;DISCOVERY MR750w;3.00;SE;786.00;17.00;3.00;usb
+s0514;train;37.00;m;D;mri lower limb;siemens;Aera;3.30;SE;2800.00;25.00;1.50;usb
+s0515;test;53.00;m;B;mri heart;siemens;Skyra_fit;3.00;GR;4.00;1.24;3.00;usb
+s0112;train;57.00;m;B;mri lower limbs bds;siemens;Avanto_fit;8.00;SE;560.00;11.00;1.50;usb
+s0516;train;57.00;f;B;mri breast;siemens;Skyra_fit;3.00;SE;7980.00;88.00;3.00;usb
+s0517;train;81.00;m;B;mri heart;siemens;Skyra_fit;3.00;GR;4.00;2.47;3.00;usb
+s0518;train;82.00;m;B;mri heart;siemens;Avanto_fit;3.00;GR;6.68;2.39;1.50;usb
+s0519;train;78.00;f;B;mri cervical spine;siemens;Avanto_fit;3.00;SE;4270.00;95.00;1.50;usb
+s0520;train;74.00;m;B;mri heart;siemens;Avanto_fit;3.00;GR;6.68;2.39;1.50;usb
+s0521;train;79.00;f;B;mri lumbar spine;siemens;Avanto_fit;5.00;SE;3510.00;92.00;1.50;usb
+s0522;train;28.00;m;B;mri wrist;siemens;Skyra;2.00;SE;661.00;14.00;3.00;usb
+s0113;train;85.00;m;B;mri lower leg;siemens;Avanto_fit;5.00;SE;563.00;12.00;1.50;usb
+s0523;test;48.00;f;A;mri leg;ge;DISCOVERY MR750w;3.00;SE;3800.00;64.32;3.00;usb
+s0524;train;78.00;f;A;mri leg;ge;SIGNA Pioneer;3.00;SE;3800.00;69.76;3.00;usb
+s0114;test;62.00;f;D;mri lower limb;siemens;Aera;4.00;['SE', 'IR'];5170.00;48.00;1.50;usb
+s0115;train;67.00;m;B;mri cervical spine;siemens;Skyra;3.00;SE;3000.00;106.00;3.00;usb
+s0525;test;30.00;f;D;mri upper leg;philips;Achieva;5.00;SE;500.00;8.00;1.50;usb
+s0526;train;37.00;f;B;mri head;siemens;Skyra_fit;1.00;['GR', 'IR'];2300.00;1.98;3.00;usb
+s0116;train;61.00;m;D;mri jaw;philips;Panorama HFO;3.00;SE;450.00;15.00;1.00;usb
+s0117;train;75.00;m;C;mri upper limb;siemens;Aera;3.00;SE;464.00;12.00;1.50;usb
+s0118;train;55.00;f;B;mri breast;siemens;Skyra_fit;3.00;SE;7980.00;88.00;3.00;usb
+s0527;train;48.00;f;D;mri cervical spine;philips;Ingenia;3.00;SE;632.55;8.00;3.00;usb
+s0119;train;31.00;f;A;mri shoulder;ge;DISCOVERY MR750w;3.20;RM;3738.00;71.81;3.00;usb
+s0528;train;63.00;f;B;mri breast;siemens;Skyra_fit;3.00;SE;7980.00;88.00;3.00;usb
+s0120;train;75.00;f;A;mri head-neck;ge;DISCOVERY MR750w;2.60;GR;4.40;1.83;3.00;usb
+s0529;train;64.00;m;B;mri knee;siemens;Skyra;3.00;SE;3500.00;42.00;3.00;usb
+s0530;train;68.00;f;B;mri breast;siemens;Skyra_fit;3.00;SE;7290.00;88.00;3.00;usb
+s0531;train;60.00;f;B;mri head ohne angio;siemens;Skyra_fit;1.00;['GR', 'IR'];2300.00;1.96;3.00;usb
+s0121;train;62.00;m;A;mri knee;ge;SIGNA Pioneer;3.00;SE;3401.00;34.46;3.00;usb
+s0532;train;88.00;m;D;mri spine;siemens;Avanto_fit;3.00;SE;3000.00;103.00;1.50;usb
+s0533;train;45.00;m;B;mri spine;siemens;Avanto_fit;3.00;SE;675.00;9.50;1.50;usb
+s0122;train;35.00;f;A;mri leg;ge;SIGNA Pioneer;3.00;SE;711.00;10.13;3.00;usb
+s0534;train;82.00;m;B;mri lumbar spine;unkown;unkown;;unkown;;;;idc
+s0123;train;52.00;m;B;mri knee;siemens;Avanto_fit;3.50;['SE', 'IR'];3630.00;33.00;1.50;usb
+s0535;train;44.00;f;B;mri cervical spine;unkown;unkown;;unkown;;;;idc
+s0536;train;65.00;m;A;mri knee;ge;DISCOVERY MR750w;3.00;SE;5249.00;41.76;3.00;usb
+s0537;test;51.00;m;A;mri head;ge;SIGNA Pioneer;0.55;['SE', 'IR'];6502.00;146.66;3.00;usb
+s0538;train;83.00;m;B;mri thoracic spine;siemens;Avanto_fit;3.00;GR;6.68;2.39;1.50;usb
+s0124;train;51.00;f;B;mri spine;siemens;Avanto_fit;4.00;SE;3000.00;94.00;1.50;usb
+s0539;train;33.00;m;B;mri spine;siemens;Avanto_fit;3.10;SE;5280.00;87.00;1.50;usb
+s0540;train;45.00;m;A;mri knee;ge;DISCOVERY MR750w;3.00;SE;5557.00;30.02;3.00;usb
+s0125;train;70.00;f;B;mri thoracic spine;siemens;Avanto_fit;3.10;SE;5280.00;87.00;1.50;usb
+s0541;train;46.00;m;D;mri lower limb;siemens;Aera;3.00;SE;3200.00;25.00;1.50;usb
+s0126;train;50.00;m;B;mri heart;siemens;Skyra_fit;3.00;GR;4.00;1.24;3.00;usb
+s0127;train;69.00;m;B;mri heart;siemens;Skyra;1.20;GR;2.99;1.06;3.00;usb
+s0542;train;39.00;f;B;mri breast;siemens;Skyra_fit;1.00;GR;5.47;2.46;3.00;usb
+s0128;train;67.00;m;B;mri heart;siemens;Skyra_fit;3.00;GR;4.00;1.24;3.00;usb
+s0543;train;54.00;m;D;mri lumbar spine;philips;Panorama HFO;4.00;SE;2500.00;100.00;1.00;usb
+s0544;train;55.00;f;D;mri breast;siemens;Skyra_fit;1.50;GR;4.50;1.69;3.00;usb
+s0129;test;69.00;m;A;mri head-neck;ge;DISCOVERY MR750w;2.50;SE;645.00;14.95;3.00;usb
+s0545;test;66.00;m;B;mri knee;siemens;Avanto_fit;4.00;SE;5920.00;91.00;1.50;usb
+s0546;train;72.00;f;D;mri cervical spine;siemens;Skyra3T;3.00;SE;4000.00;85.00;3.00;usb
+s0130;train;81.00;f;D;mri lumbar spine;siemens;Aera;4.00;SE;4360.00;88.00;1.50;usb
+s0131;train;44.00;f;B;mri thoracic spine;siemens;Avanto_fit;4.00;SE;5460.00;91.00;1.50;usb
+s0132;train;67.00;f;D;mri lumbar spine;siemens;Aera;2.00;GR;7.25;2.39;1.50;usb
+s0133;train;60.00;m;B;mri shoulder;siemens;Skyra_fit;2.50;SE;588.00;10.00;3.00;usb
+s0547;test;56.00;m;B;mri heart;siemens;Avanto_fit;3.00;GR;6.68;2.39;1.50;usb
+s0548;train;35.00;m;B;mri wrist;siemens;Skyra_fit;2.00;SE;661.00;15.00;3.00;usb
+s0134;train;41.00;m;A;mri ankle;ge;DISCOVERY MR750w;3.00;SE;642.00;10.07;3.00;usb
+s0135;train;73.00;m;D;mri head-neck;siemens;Aera;3.50;SE;524.00;18.00;1.50;usb
+s0549;train;81.00;f;A;mri lumbar spine;ge;SIGNA Pioneer;5.00;SE;5805.00;81.65;3.00;usb
+s0136;train;24.00;m;B;mri ankle;siemens;Skyra;3.00;SE;7030.00;81.00;3.00;usb
+s0550;train;21.00;f;B;mri spine;siemens;Avanto_fit;3.00;SE;568.00;9.50;1.50;usb
+s0551;train;58.00;f;B;mri spine;siemens;Avanto_fit;3.00;SE;675.00;9.50;1.50;usb
+s0137;train;44.00;f;A;mri sacrum-isg;ge;SIGNA Pioneer;4.00;SE;4334.00;75.46;3.00;usb
+s0552;train;65.00;m;A;mri lumbar spine;ge;DISCOVERY MR750w;4.00;SE;3651.90;8.83;3.00;usb
+s0553;train;71.00;m;B;mri leg;siemens;Skyra;3.00;SE;6600.00;85.00;3.00;usb
+s0554;train;71.00;m;B;mri head;siemens;Skyra;2.00;SE;6580.00;99.00;3.00;usb
+s0555;train;57.00;m;B;mri plexus lumbalis;siemens;Skyra_fit;4.00;SE;647.00;11.00;3.00;usb
+s0138;train;41.00;m;D;mri spine;siemens;Avanto_fit;3.00;SE;675.00;9.50;1.50;usb
+s0556;train;60.00;m;A;mri knee;ge;SIGNA Pioneer;3.00;SE;3638.00;34.27;3.00;usb
+s0139;train;54.00;m;C;mri heart;siemens;Avanto_fit;3.00;GR;6.68;2.39;1.50;usb
+s0557;train;70.00;m;B;mri hip;siemens;Avanto_fit;3.00;SE;661.00;9.50;1.50;usb
+s0140;train;51.00;m;B;mri forearm;siemens;Skyra;4.00;SE;5490.00;87.00;3.00;usb
+s0558;train;62.00;m;B;mri heart;siemens;Avanto_fit;3.00;GR;6.68;2.39;1.50;usb
+s0141;train;45.00;f;B;mri leg;siemens;Skyra_fit;3.00;SE;5330.00;86.00;3.00;usb
+s0559;train;62.00;m;B;mri cervical spine;siemens;Avanto_fit;3.00;SE;560.00;11.00;1.50;usb
+s0560;train;50.00;f;B;mri breast;siemens;Skyra_fit;3.00;SE;7290.00;88.00;3.00;usb
+s0142;test;64.00;m;B;mri thoracic spine;siemens;Avanto_fit;3.00;SE;4890.00;100.00;1.50;usb
+s0561;train;72.00;m;B;mri head ohne angio;siemens;Avanto_fit;1.00;['GR', 'IR'];1860.00;5.03;1.50;usb
+s0562;train;58.00;m;A;mri knee;siemens;MAGNETOM Vida;3.00;SE;4070.00;24.00;3.00;usb
+s0563;train;28.00;f;B;mri shoulder;siemens;Skyra;2.50;SE;630.00;9.80;3.00;usb
+s0564;train;41.00;f;B;mri cervical spine;siemens;Skyra_fit;3.00;SE;3500.00;107.00;3.00;usb
+s0565;train;73.00;f;D;mri cervical spine;siemens;Skyra;3.00;SE;2800.00;106.00;3.00;usb
+s0566;train;36.00;f;A;mri cervical spine;siemens;MAGNETOM Vida;3.00;SE;3500.00;106.00;3.00;usb
+s0567;train;57.00;m;B;mri knee;siemens;Avanto_fit;3.00;SE;2500.00;35.00;1.50;usb
+s0568;train;73.00;f;B;mri heart;siemens;Avanto_fit;3.00;GR;6.68;4.77;1.50;usb
+s0143;test;68.00;m;B;mri abdomen pelvis;siemens;Prisma;3.00;GR;4.00;1.32;3.00;usb
+s0569;train;62.00;f;B;mri breast;siemens;Skyra_fit;3.00;SE;7290.00;88.00;3.00;usb
+s0144;train;73.00;m;B;mri heart;siemens;Skyra;1.10;GR;2.99;1.06;3.00;usb
+s0570;train;34.00;m;B;mri spine;siemens;Avanto_fit;3.00;SE;675.00;9.50;1.50;usb
+s0571;train;50.00;f;B;mri breast;siemens;Skyra_fit;3.00;SE;6600.00;88.00;3.00;usb
+s0145;test;57.00;m;B;mri shoulder;siemens;Skyra_fit;3.00;SE;4210.00;72.00;3.00;usb
+s0572;train;70.00;f;B;mri head;siemens;Avanto_fit;3.00;SE;4670.00;102.00;1.50;usb
+s0573;train;85.00;m;B;mri thoracic spine;siemens;Avanto_fit;3.00;SE;428.00;7.70;1.50;usb
+s0574;train;58.00;f;B;mri knee;siemens;Avanto_fit;3.00;SE;2940.00;38.00;1.50;usb
+s0575;train;44.00;f;B;mri head;siemens;Skyra;1.00;['GR', 'IR'];2300.00;1.96;3.00;usb
+s0146;train;45.00;m;B;mri shoulder;siemens;Skyra_fit;3.00;SE;700.00;11.00;3.00;usb
+s0576;train;69.00;f;B;mri cervical spine;siemens;Avanto_fit;3.00;SE;482.00;12.00;1.50;usb
+s0577;train;60.00;m;B;mri spine;unkown;unkown;;unkown;;;;idc
+s0578;train;52.00;f;B;mri spine;unkown;unkown;;unkown;;;;idc
+s0147;train;48.00;f;B;mri heart;siemens;Skyra_fit;3.00;GR;4.00;1.24;3.00;usb
+s0579;train;46.00;f;C;mri knee;siemens;MAGNETOM Vida;3.00;SE;527.00;10.00;3.00;usb
+s0580;test;30.00;m;B;mri wrist;siemens;Skyra;2.00;SE;661.00;14.00;3.00;usb
+s0581;train;71.00;f;B;mri upper leg;siemens;Avanto_fit;5.00;SE;3130.00;85.00;1.50;usb
+s0582;train;58.00;m;B;mri cervical spine;siemens;Avanto_fit;3.00;SE;3080.00;95.00;1.50;usb
+s0583;train;81.00;m;B;mri heart;siemens;Avanto_fit;3.00;GR;6.68;4.77;1.50;usb
+s0148;train;73.00;m;B;mri abdomen pelvis;siemens;Avanto_fit;3.00;GR;6.68;2.39;1.50;usb
+s0149;train;63.00;f;B;mri head;siemens;Skyra_fit;1.00;['GR', 'IR'];2300.00;1.98;3.00;usb
+s0150;test;39.00;f;B;mri lower limb;siemens;Prisma;3.00;SE;732.00;13.00;3.00;usb
+s0584;train;74.00;m;B;mri knee;siemens;MAGNETOM Free.Max;3.50;SE;2610.00;34.00;0.55;usb
+s0585;train;80.00;m;B;mri thoracic spine;siemens;Avanto_fit;3.00;SE;6510.00;105.00;1.50;usb
+s0586;train;31.00;f;C;mri spine;siemens;MAGNETOM Sola;5.00;SE;6590.00;88.00;1.50;usb
+s0587;train;24.00;f;B;mri spine;siemens;Avanto_fit;2.20;SE;440.00;12.00;1.50;usb
+s0588;train;53.00;m;B;mri cervical spine;siemens;Skyra;3.00;SE;4300.00;90.00;3.00;usb
+s0589;train;56.00;f;B;mri heart;siemens;Avanto_fit;3.00;GR;6.68;2.39;1.50;usb
+s0151;train;77.00;f;B;mri head;siemens;Skyra_fit;1.00;['GR', 'IR'];2300.00;1.96;3.00;usb
+s0590;train;59.00;m;A;mri head head-neck angio;siemens;MAGNETOM Vida;3.00;SE;7340.00;93.00;3.00;usb
+s0591;train;60.00;m;B;mri lumbar spine;unkown;unkown;;unkown;;;;idc
+s0152;train;20.00;m;B;mri wrist;siemens;Skyra;1.00;GR;17.00;5.67;3.00;usb
+s0153;train;68.00;m;B;mri heart;siemens;Skyra_fit;1.10;GR;2.99;1.06;3.00;usb
+s0592;test;77.00;m;A;mri lumbar spine;siemens;MAGNETOM Sola;4.00;SE;4490.00;90.00;1.50;usb
+s0154;train;64.00;f;B;mri elbow;siemens;Skyra_fit;3.00;SE;844.00;12.00;3.00;usb
+s0155;train;49.00;m;C;mri abdomen;siemens;Avanto_fit;3.00;GR;6.68;2.39;1.50;usb
+s0156;train;58.00;f;B;mri knee;siemens;MAGNETOM Free.Max;3.50;SE;5640.00;35.00;0.55;usb
+s0157;train;62.00;f;A;mri thoracic spine;siemens;MAGNETOM Sola;5.00;SE;3440.00;91.00;1.50;usb
+s0593;train;45.00;f;B;mri thoracic spine;siemens;Skyra;4.00;SE;3690.00;91.00;3.00;usb
+s0594;test;34.00;m;B;mri head ohne angio;siemens;Skyra_fit;1.00;['GR', 'IR'];2300.00;1.96;3.00;usb
+s0595;train;74.00;m;D;mri head;siemens;MAGNETOM Vida;3.00;SE;9000.00;81.00;3.00;usb
+s0158;train;52.00;m;B;mri abdomen;siemens;Avanto_fit;3.00;GR;6.68;2.39;1.50;usb
+s0596;train;59.00;f;C;mri heart;siemens;Avanto_fit;6.00;SE;1400.00;90.00;1.50;usb
+s0597;train;82.00;f;B;mri plexus lumbalis;siemens;Skyra;4.00;SE;647.00;11.00;3.00;usb
+s0598;train;96.00;m;B;mri head-neck;siemens;Skyra;0.63;['GR', 'IR'];884.00;5.27;3.00;usb
+s0159;train;74.00;m;B;mri abdomen;siemens;Skyra;3.00;GR;5.14;2.46;3.00;usb
+s0160;train;63.00;m;B;mri pelvis;siemens;MAGNETOM Free.Max;3.00;SE;3600.00;159.00;0.55;usb
+s0161;train;83.00;f;B;mri pelvis leg angio;siemens;Avanto_fit;0.90;GR;3.12;1.10;1.50;usb
+s0162;train;83.00;m;C;mri chest-abdomen;siemens;Avanto_fit;7.00;SE;600.00;30.00;1.50;usb
+s0163;train;42.00;m;B;mri abdomen;siemens;Avanto_fit;3.00;GR;6.68;2.39;1.50;usb
+s0164;train;35.00;m;A;mri abdomen pelvis;siemens;MAGNETOM Vida;3.00;SE;4390.00;98.00;3.00;usb
+s0165;train;40.00;m;B;mri ankle;siemens;Skyra;3.00;SE;5510.00;81.00;3.00;usb
+s0166;train;71.00;m;B;mri abdomen;siemens;Skyra;3.00;GR;5.14;2.46;3.00;usb
+s0167;train;76.00;f;A;mri abdomen;siemens;MAGNETOM Vida;1.50;GR;3.95;1.23;3.00;usb
+s0168;train;59.00;m;A;mri abdomen;siemens;MAGNETOM Vida;3.00;GR;3.97;1.29;3.00;usb
+s0169;train;54.00;f;B;mri pelvis;siemens;MAGNETOM Free.Max;5.00;SE;4950.00;68.00;0.55;usb
+s0170;train;61.00;m;B;mri abdomen;siemens;Avanto_fit;3.30;GR;6.68;2.39;1.50;usb
+s0171;train;84.00;f;B;mri abdomen;siemens;Avanto_fit;3.00;GR;6.68;2.39;1.50;usb
+s0172;train;60.00;m;C;mri pelvis;siemens;MAGNETOM Vida;3.00;GR;4.10;1.31;3.00;usb
+s0173;train;50.00;f;A;mri abdomen;siemens;MAGNETOM Vida;5.00;SE;1400.00;87.00;3.00;usb
+s0599;train;60.00;m;B;mri thoracic spine;siemens;Avanto_fit;1.70;GR;4.20;2.38;1.50;usb
+s0174;train;75.00;f;B;mri pelvis;siemens;MAGNETOM Free.Max;5.00;SE;5000.00;88.00;0.55;usb
+s0175;test;62.00;f;B;mri whole body;siemens;Avanto_fit;3.00;GR;13.90;4.77;1.50;usb
+s0176;train;77.00;m;B;mri pelvis;siemens;Skyra_fit;3.00;GR;4.34;2.55;3.00;usb
+s0177;train;49.00;m;B;mri pelvis;siemens;Prisma;3.00;SE;7000.00;104.00;3.00;usb
+s0178;train;81.00;m;B;mri pelvis;siemens;Avanto_fit;5.00;SE;6600.00;92.00;1.50;usb
+s0179;train;74.00;f;B;mri pelvis;siemens;Avanto_fit;5.00;SE;1100.00;91.00;1.50;usb
+s0180;train;70.00;f;B;mri abdomen;siemens;Avanto_fit;3.00;GR;6.68;2.39;1.50;usb
+s0181;train;54.00;m;B;mri abdomen;siemens;Avanto_fit;3.00;GR;6.68;2.39;1.50;usb
+s0182;train;45.00;f;C;mri abdomen;siemens;Skyra;3.00;GR;4.00;1.24;3.00;usb
+s0183;train;83.00;m;B;mri pelvis;siemens;Avanto_fit;5.00;SE;590.00;11.00;1.50;usb
+s0184;train;65.00;f;C;mri abdomen;siemens;Avanto_fit;3.00;GR;6.68;2.39;1.50;usb
+s0185;train;66.00;f;B;mri abdomen-pelvis;siemens;Avanto_fit;3.00;GR;6.68;4.77;1.50;usb
+s0186;train;83.00;m;B;mri abdomen;siemens;Skyra;1.50;GR;4.21;1.34;3.00;usb
+s0600;train;79.00;m;B;mri head;siemens;Skyra_fit;3.00;SE;6810.00;96.00;3.00;usb
+s0187;train;68.00;m;A;mri abdomen-pelvis;siemens;MAGNETOM Vida;1.50;GR;3.95;1.23;3.00;usb
+s0188;train;23.00;m;B;mri abdomen;siemens;Skyra;1.50;GR;4.21;1.34;3.00;usb
+s0189;train;61.00;m;B;mri abdomen;siemens;Avanto_fit;3.00;GR;6.68;2.39;1.50;usb
+s0601;train;50.00;f;B;mri head;siemens;Skyra_fit;1.00;['GR', 'IR'];2300.00;1.98;3.00;usb
+s0190;train;64.00;f;B;mri whole body;siemens;Avanto_fit;5.00;['SE', 'IR'];6420.00;87.00;1.50;usb
+s0191;train;23.00;m;A;mri pelvis;siemens;MAGNETOM Vida;4.00;SE;5200.00;77.00;3.00;usb
+s0602;train;51.00;f;A;mri cervical spine;siemens;MAGNETOM Sola;3.00;SE;3300.00;73.00;1.50;usb
+s0192;train;82.00;m;A;mri pelvis;siemens;MAGNETOM Vida;3.00;GR;4.10;1.31;3.00;usb
+s0193;train;46.00;f;A;mri abdomen-pelvis;siemens;MAGNETOM Sola;5.00;SE;1800.00;96.00;1.50;usb
+s0194;train;41.00;m;B;mri chest-abdomen;siemens;Avanto_fit;7.00;SE;600.00;30.00;1.50;usb
+s0195;train;22.00;f;B;mri abdomen;siemens;Avanto_fit;3.00;GR;6.74;2.39;1.50;usb
+s0196;train;55.00;f;B;breast biopsy mri;siemens;Avanto_fit;3.00;SE;4960.00;60.00;1.50;usb
+s0197;train;24.00;m;B;mri abdomen;siemens;Avanto_fit;3.00;GR;6.71;2.39;1.50;usb
+s0198;train;64.00;m;D;mri lower limbs;philips;Ingenia;2.50;IR;6370.47;30.00;3.00;usb
+s0199;train;65.00;m;B;mri abdomen;siemens;Skyra;3.00;GR;4.00;1.24;3.00;usb
+s0200;train;67.00;m;B;mri pelvis;siemens;Skyra;3.00;SE;13810.00;101.00;3.00;usb
+s0201;train;84.00;m;B;mri abdomen;siemens;Skyra;3.00;GR;4.00;1.24;3.00;usb
+s0603;train;84.00;m;B;mri thoracic spine;siemens;Avanto_fit;3.00;SE;6790.00;105.00;1.50;usb
+s0202;train;67.00;m;B;mri chest;siemens;Avanto_fit;7.00;SE;600.00;30.00;1.50;usb
+s0203;train;59.00;m;B;mri abdomen;siemens;Avanto_fit;3.00;GR;6.68;2.39;1.50;usb
+s0204;train;73.00;m;B;mri abdomen;siemens;Avanto_fit;3.00;GR;6.68;2.39;1.50;usb
+s0205;train;54.00;m;B;mri shoulder;siemens;Skyra;2.00;SE;4970.00;34.00;3.00;usb
+s0206;train;56.00;f;B;mri pelvis;siemens;Avanto_fit;5.00;SE;1100.00;91.00;1.50;usb
+s0207;train;25.00;m;A;mri abdomen;siemens;MAGNETOM Vida;3.00;GR;3.97;1.29;3.00;usb
+s0604;train;56.00;m;B;mri ankle;siemens;MAGNETOM Free.Max;3.00;SE;551.00;15.00;0.55;usb
+s0208;train;34.00;f;B;mri pelvis;siemens;Skyra;3.00;SE;8500.00;104.00;3.00;usb
+s0605;train;65.00;f;D;mri upper extremität;siemens;MAGNETOM Lumina;1.50;SE;4600.00;73.00;3.00;usb
+s0209;train;56.00;m;A;mri head-neck;siemens;MAGNETOM Vida;0.90;GR;5.59;2.46;3.00;usb
+s0210;train;51.00;m;B;mri pelvis;siemens;MAGNETOM Free.Max;5.00;SE;4950.00;68.00;0.55;usb
+s0211;train;65.00;f;B;mri abdomen;siemens;Avanto_fit;2.00;SE;900.00;90.00;1.50;usb
+s0212;train;49.00;m;B;mri pelvis;siemens;Skyra;3.00;SE;10120.00;104.00;3.00;usb
+s0213;train;54.00;m;A;mri abdomen;siemens;MAGNETOM Vida;3.00;GR;3.97;2.52;3.00;usb
+s0214;train;27.00;m;B;mri pelvis;siemens;Avanto_fit;5.00;SE;3430.00;91.00;1.50;usb
+s0215;train;58.00;m;B;mri heart;siemens;Avanto_fit;1.17;GR;3.06;1.04;1.50;usb
+s0606;train;73.00;m;D;mri head;siemens;Avanto_fit;1.00;['GR', 'IR'];2100.00;2.47;1.50;usb
+s0216;test;84.00;f;A;mri abdomen;siemens;MAGNETOM Vida;1.50;GR;3.95;2.46;3.00;usb
+s0217;train;74.00;f;A;mri pelvis hip;siemens;MAGNETOM Sola;5.00;SE;429.00;11.00;1.50;usb
+s0218;train;70.00;f;B;mri pelvis;siemens;Skyra_fit;4.00;SE;1100.00;92.00;3.00;usb
+s0219;train;74.00;m;A;mri abdomen;siemens;MAGNETOM Vida;5.00;SE;1600.00;96.00;3.00;usb
+s0607;train;68.00;f;A;mri lumbar spine;siemens;MAGNETOM Sola;5.00;SE;4610.00;81.00;1.50;usb
+s0608;train;80.00;f;A;mri spine;siemens;MAGNETOM Sola;3.60;SE;4540.00;91.00;1.50;usb
+s0220;train;61.00;m;D;mri pelvis hip;siemens;MAGNETOM Vida;5.00;SE;750.00;7.40;3.00;usb
+s0221;train;41.00;f;B;mri abdomen;siemens;Avanto_fit;5.00;SE;1100.00;90.00;1.50;usb
+s0222;train;56.00;m;A;mri abdomen;siemens;MAGNETOM Vida;3.00;GR;3.97;1.29;3.00;usb
+s0609;train;40.00;f;B;mri breast;siemens;Skyra_fit;3.00;SE;7290.00;88.00;3.00;usb
+s0223;train;37.00;f;B;mri abdomen-pelvis;siemens;Avanto_fit;3.00;GR;6.68;4.77;1.50;usb
+s0610;train;76.00;f;B;mri head;siemens;Skyra;1.00;['GR', 'IR'];2300.00;2.01;3.00;usb
+s0224;train;68.00;m;B;mri chest;siemens;Avanto_fit;7.00;SE;600.00;30.00;1.50;usb
+s0225;train;39.00;f;B;mri pelvis;siemens;Avanto_fit;3.00;SE;1000.00;131.00;1.50;usb
+s0226;train;36.00;m;B;mri chest;siemens;Avanto_fit;3.00;GR;6.68;2.39;1.50;usb
+s0227;train;76.00;m;B;mri pelvis;siemens;Avanto_fit;3.00;SE;6450.00;102.00;1.50;usb
+s0228;train;64.00;f;B;mri abdomen;siemens;Skyra;3.00;GR;4.00;1.23;3.00;usb
+s0229;train;65.00;m;D;mri pelvis hip;ge;DISCOVERY MR750w;3.50;GR;4.93;2.08;3.00;usb
+s0230;train;51.00;f;B;mri pelvis;siemens;Avanto_fit;5.00;SE;1100.00;91.00;1.50;usb
+s0231;train;57.00;f;D;mri pelvis hip;siemens;MAGNETOM Sola;3.00;SE;5150.00;100.00;1.50;usb
+s0232;train;24.00;m;B;mri pelvis;siemens;Avanto_fit;5.00;SE;3650.00;91.00;1.50;usb
+s0611;train;61.00;f;B;mri head;siemens;Skyra;3.00;SE;7780.00;96.00;3.00;usb
+s0233;train;33.00;f;B;mri abdomen-pelvis;siemens;Avanto_fit;3.00;GR;6.68;2.39;1.50;usb
+s0234;train;81.00;m;B;mri pelvis;siemens;Skyra_fit;3.00;SE;4660.00;104.00;3.00;usb
+s0235;train;55.00;m;A;mri abdomen;siemens;MAGNETOM Vida;3.00;GR;3.97;1.29;3.00;usb
+s0236;train;86.00;f;B;mri whole body;siemens;Avanto_fit;3.00;GR;6.68;2.39;1.50;usb
+s0237;train;56.00;f;A;mri abdomen-pelvis;siemens;MAGNETOM Vida;1.50;GR;3.95;1.23;3.00;usb
+s0238;train;78.00;m;B;mri abdomen;siemens;Avanto_fit;3.00;GR;6.69;2.39;1.50;usb
+s0239;train;59.00;m;B;mri pelvis;siemens;Prisma;3.00;SE;7000.00;104.00;3.00;usb
+s0240;train;86.00;m;D;mri pelvis hip;siemens;MAGNETOM Skyra;3.00;SE;3640.00;103.00;3.00;usb
+s0241;train;22.00;m;B;mri abdomen;siemens;Skyra;3.00;GR;4.00;1.24;3.00;usb
+s0242;train;73.00;m;D;mri abdomen;siemens;MAGNETOM Skyra;3.00;GR;4.03;1.32;3.00;usb
+s0243;train;75.00;m;D;mri pelvis hip;siemens;MAGNETOM Vida;1.50;GR;4.21;2.55;3.00;usb
+s0244;train;75.00;f;B;mri abdomen;siemens;Skyra_fit;4.00;SE;1100.00;92.00;3.00;usb
+s0245;train;52.00;m;D;mri abdomen;ge;SIGNA Voyager;4.40;['GR', 'IR'];2.87;1.32;1.50;usb
+s0246;train;44.00;f;A;mri abdomen;siemens;MAGNETOM Vida;1.50;GR;3.95;1.23;3.00;usb
+s0247;train;57.00;f;B;mri chest;siemens;Avanto_fit;3.00;SE;5350.00;92.00;1.50;usb
+s0248;train;53.00;m;B;mri abdomen;siemens;Avanto_fit;3.00;GR;6.68;2.39;1.50;usb
+s0249;train;70.00;m;B;mri whole body;siemens;Avanto_fit;5.00;SE;5170.00;92.00;1.50;usb
+s0612;train;68.00;f;D;mri spine;philips;Ingenia;2.00;SE;1000.00;33.00;3.00;usb
+s0250;train;83.00;m;A;mri abdomen;siemens;MAGNETOM Vida;1.50;GR;3.95;1.23;3.00;usb
+s0251;train;48.00;m;A;mri abdomen-pelvis;siemens;MAGNETOM Vida;3.00;GR;3.97;1.29;3.00;usb
+s0252;train;60.00;m;A;mri abdomen;siemens;MAGNETOM Vida;3.00;GR;3.97;1.29;3.00;usb
+s0253;train;66.00;m;D;mri abdomen;siemens;MAGNETOM Vida;3.00;GR;3.97;1.29;3.00;usb
+s0254;train;65.00;f;B;mri abdomen;siemens;Skyra;3.00;GR;4.00;1.23;3.00;usb
+s0255;train;67.00;m;A;mri head;siemens;MAGNETOM Sola;3.00;SE;5880.00;98.00;1.50;usb
+s0256;train;76.00;m;D;mri abdomen;siemens;MAGNETOM Vida;4.00;SE;1300.00;111.00;3.00;usb
+s0257;train;60.00;m;A;mri pelvis hip;siemens;MAGNETOM Sola;5.00;SE;656.00;8.50;1.50;usb
+s0258;train;40.00;m;A;mri abdomen-pelvis;siemens;MAGNETOM Vida;3.00;GR;3.97;1.29;3.00;usb
+s0259;train;73.00;m;A;mri pelvis;siemens;MAGNETOM Vida;3.00;SE;4990.00;98.00;3.00;usb
+s0260;train;46.00;m;A;mri abdomen;siemens;MAGNETOM Vida;3.00;GR;3.97;1.29;3.00;usb
+s0261;train;71.00;f;B;mri pelvis;siemens;MAGNETOM Free.Max;5.00;SE;4660.00;68.00;0.55;usb
+s0262;train;38.00;f;B;mri abdomen-pelvis;siemens;Avanto_fit;6.00;SE;1400.00;94.00;1.50;usb
+s0263;train;50.00;f;B;mri abdomen;siemens;Avanto_fit;1.50;GR;6.64;2.39;1.50;usb
+s0264;train;73.00;f;D;mri pelvis hip;siemens;Aera;4.00;SE;5000.00;27.00;1.50;usb
+s0265;train;79.00;f;B;mri abdomen;siemens;Avanto_fit;3.00;GR;6.68;2.39;1.50;usb
+s0266;train;43.00;f;B;mri breast;siemens;Avanto_fit;3.00;SE;8160.00;86.00;1.50;usb
+s0267;train;48.00;f;A;mri abdomen;siemens;MAGNETOM Vida;1.50;GR;3.95;1.23;3.00;usb
+s0268;train;84.00;m;B;mri cervical spine;siemens;Avanto_fit;4.00;SE;4580.00;95.00;1.50;usb
+s0269;train;51.00;m;B;mri pelvis;siemens;Skyra_fit;3.00;SE;8930.00;104.00;3.00;usb
+s0613;train;62.00;f;B;mri heart;siemens;Avanto_fit;3.00;GR;6.68;2.39;1.50;usb
+s0270;train;61.00;m;B;mri abdomen;siemens;Avanto_fit;3.00;GR;6.68;2.39;1.50;usb
+s0271;train;70.00;f;B;mri abdomen;siemens;Skyra;3.00;GR;4.00;1.24;3.00;usb
+s0272;train;64.00;f;B;mri abdomen;siemens;Avanto_fit;3.00;GR;6.68;2.39;1.50;usb
+s0273;train;80.00;m;B;mri pelvis;siemens;Skyra_fit;1.00;SE;1600.00;96.00;3.00;usb
+s0614;test;60.00;f;D;mri head;ge;DISCOVERY MR750w;2.00;['SE', 'IR'];6500.00;138.69;3.00;usb
+s0274;train;87.00;m;D;mri chest;philips;Ingenia Elition X;5.00;SE;1200.00;60.00;3.00;usb
+s0275;train;61.00;m;A;mri pelvis;siemens;MAGNETOM Vida;3.00;GR;4.10;1.31;3.00;usb
+s0276;train;64.00;m;B;mri head;siemens;Skyra;1.00;['GR', 'IR'];2300.00;1.98;3.00;usb
+s0615;test;74.00;f;B;mri head;siemens;Skyra;3.00;SE;6500.00;96.00;3.00;usb
+s0616;train;64.00;f;B;mri upper leg;siemens;Avanto_fit;5.00;SE;676.00;11.00;1.50;usb
+s0277;train;78.00;m;D;mri pelvis hip;siemens;MAGNETOM Vida;3.00;SE;8490.00;106.00;3.00;usb
+s0278;train;82.00;f;C;mri abdomen;siemens;Avanto_fit;3.00;GR;6.68;4.77;1.50;usb
+s0279;train;28.00;f;B;mri knee;siemens;Skyra;3.00;SE;3520.00;35.00;3.00;usb
+s0280;test;81.00;m;B;mri whole body;siemens;Avanto_fit;3.00;GR;6.68;2.39;1.50;usb
+s0281;train;69.00;f;A;mri abdomen;siemens;MAGNETOM Vida;3.00;GR;3.97;1.29;3.00;usb
+s0282;train;79.00;m;B;mri whole body;siemens;Avanto_fit;3.00;GR;13.90;2.39;1.50;usb
+s0283;train;75.00;f;A;mri head-neck;siemens;MAGNETOM Vida;0.90;GR;5.59;2.46;3.00;usb
+s0284;test;67.00;m;A;mri pelvis;siemens;MAGNETOM Vida;3.00;GR;4.10;1.31;3.00;usb
+s0285;train;53.00;m;A;mri spine;siemens;MAGNETOM Sola;2.00;SE;794.00;12.00;1.50;usb
+s0286;test;67.00;m;B;mri whole body;siemens;Avanto_fit;3.00;GR;6.68;2.39;1.50;usb
+s0287;test;17.00;f;C;mri abdomen;siemens;MAGNETOM Vida Fit;3.00;GR;4.10;1.33;3.00;usb
+s0288;train;55.00;f;B;mri chest;siemens;Avanto_fit;3.00;GR;6.68;2.39;1.50;usb
+s0289;train;75.00;m;A;mri abdomen;siemens;MAGNETOM Vida;3.00;GR;3.97;1.29;3.00;usb
+s0290;train;72.00;f;B;mri knee;siemens;Avanto_fit;3.00;SE;2940.00;38.00;1.50;usb
+s0291;train;57.00;f;B;mri lumbar spine;siemens;MAGNETOM Free.Max;3.00;GR;9.68;2.69;0.55;usb
+s0292;train;43.00;m;C;mri knee;siemens;Prisma;3.00;SE;3490.00;40.00;3.00;usb
+s0293;test;52.00;f;B;mri abdomen;siemens;Skyra;3.00;GR;4.02;1.35;3.00;usb
+s0294;train;74.00;m;B;mri thoracic spine;siemens;Avanto_fit;3.00;GR;6.68;2.39;1.50;usb
+s0295;train;87.00;m;B;mri abdomen;siemens;Avanto_fit;3.00;GR;6.68;2.39;1.50;usb
+s0296;train;77.00;m;B;mri knee;siemens;Skyra;3.00;SE;3270.00;35.00;3.00;usb
+s0297;train;24.00;m;B;mri lumbar spine;siemens;Avanto_fit;4.00;SE;449.00;12.00;1.50;usb
+s0298;train;33.00;m;D;mri pelvis hip;siemens;MAGNETOM Vida;3.00;SE;857.00;9.10;3.00;usb

@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+
+# Large data files
+*.nii.gz
+*.nii
+*.npy
+*.npz
+
+# Model checkpoints
+*.pth
+*.pt
+*.bin
+*.safetensors
+
+# Generated outputs
+data/images/
+data/trajectories/
+data/sft_dataset.jsonl
+data/rl_temp/
+data/dummy_dataset/
+
+# Training outputs
+models/sft_output/
+models/rl_output/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+venv/
+.venv/
