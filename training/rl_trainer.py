@@ -1,22 +1,23 @@
+import os
 import torch
 from transformers import AutoProcessor, AutoModelForImageTextToText
 import json
 import re
 import numpy as np
 
-# NOTE: TRL's PPOTrainer + AutoModelForCausalLMWithValueHead does NOT support 
-# vision-language models (VLMs) like Qwen3-VL-8B-Instruct. The value head wrapper 
-# cannot handle pixel_values or image_grid_thw inputs.
+# NOTE: The README specifies GRPO (Group Relative Policy Optimization) for Phase 2,
+# NOT PPO with a value head. GRPO samples multiple responses per prompt, computes
+# advantages relative to the group mean (no critic network), and updates the policy
+# via group-relative normalization.
 #
-# Instead, this module implements a custom PPO-style loop that:
-# 1. Uses the VLM vision encoder separately (frozen)
-# 2. Adds a lightweight value head on top of the LLM's last hidden state
-# 3. Manually handles the RL forward/backward pass
+# This module implements a simplified PPO-style loop for prototyping. The reward
+# function matches the README spec (format + quality + improvement + overshoot penalty
+# + tool cost + stop bonus) and can be swapped into a GRPO framework.
 #
-# For a production-ready implementation, consider:
-# - OpenRLHF (supports VLMs natively)
-# - LLaMA-Factory's RL support
-# - A custom Trainer subclass
+# For production GRPO, consider:
+# - LLaMA-Factory (supports GRPO natively)
+# - OpenRLHF (supports VLMs + GRPO)
+# - VERL (supports multi-turn RL)
 
 def parse_action(text_output):
     """
@@ -86,14 +87,24 @@ def train_rl(sft_model_path="models/sft_output", output_dir="models/rl_output"):
         lr=1.41e-5
     )
     
-    # Environment setup
+    # Environment setup — uses real TotalSegmentator volumes from the SFT dataset
     from training.rl_environment import MedSAMEnvironment
     from models.sam_med3d_wrapper import FrozenSAMMed3D
-    
+    from data_generation.totalsegmentator_loader import get_totalsegmentator_dataset, load_nifti
+
+    ts_dir = os.path.join(os.path.dirname(__file__), '..', 'Totalsegmentator_dataset_v201')
+    dataset = get_totalsegmentator_dataset(ts_dir)
+    if not dataset:
+        print("No TotalSegmentator data found for RL env. Skipping environment setup.")
+        return
+
     sam_model = FrozenSAMMed3D()
-    dummy_vol = np.random.randn(64, 128, 128)
-    dummy_mask = np.zeros((64, 128, 128), dtype=np.uint8)
-    env = MedSAMEnvironment(sam_model, dummy_vol, dummy_mask, "liver", "dummy_0")
+    sample = dataset[0]
+    vol, spacing = load_nifti(sample['ct_path'])
+    mask, _ = load_nifti(sample['mask_path'])
+    mask = (mask > 0).astype(np.uint8)
+    env = MedSAMEnvironment(sam_model, vol, mask, sample['target_name'], sample['volume_id'], spacing)
+    print(f"RL env initialized on {sample['volume_id']}/{sample['target_name']}")
     
     print("Starting custom VLM-compatible RL rollout loop...")
     

@@ -58,14 +58,16 @@ def load_nifti(file_path):
     """
     nii = nib.load(file_path)
     data = nii.get_fdata()
-    spacing = nii.header.get_zooms() # typically (dx, dy, dz)
+    zooms = nii.header.get_zooms()  # typically (dx, dy, dz, ...)
+    
+    # Take only first 3 spatial dimensions
+    spacing = zooms[:3] if len(zooms) >= 3 else (1.0, 1.0, 1.0)
+    # Ensure positive spacing (NIfTI can encode axis flips as negative)
+    spacing = tuple(abs(float(s)) for s in spacing)
     
     # Typical NIfTI is (x, y, z). We want (z, y, x)
     data = np.transpose(data, (2, 1, 0))
     # Match spacing to (z, y, x)
-    if len(spacing) >= 3:
-        spacing = (spacing[2], spacing[1], spacing[0])
-    else:
-        spacing = (1.0, 1.0, 1.0)
-        
+    spacing = (spacing[2], spacing[1], spacing[0])
+    
     return data, spacing

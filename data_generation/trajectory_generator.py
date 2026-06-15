@@ -32,9 +32,24 @@ def resample_slice(slice_2d, spacing_2d, target_spacing=(1.0, 1.0)):
     resampled = cv2.resize(slice_2d, (new_shape[1], new_shape[0]), interpolation=cv2.INTER_CUBIC)
     return resampled
 
-def save_triview_image(axial, coronal, sagittal, spacing, output_path):
+def overlay_mask(slice_2d, mask_2d, alpha=0.3, color=(0, 255, 0)):
+    """Overlay a binary mask on a grayscale slice in semi-transparent green."""
+    if mask_2d is None or mask_2d.sum() == 0:
+        return slice_2d
+    rgb = np.stack([slice_2d] * 3, axis=-1).astype(np.float32)
+    mask_bool = mask_2d.astype(bool)
+    for c in range(3):
+        rgb[..., c] = np.where(mask_bool,
+                               rgb[..., c] * (1 - alpha) + color[c] * alpha,
+                               rgb[..., c])
+    return rgb.astype(np.uint8)
+
+
+def save_triview_image(axial, coronal, sagittal, spacing, output_path,
+                       mask_axial=None, mask_coronal=None, mask_sagittal=None):
     """
     Concatenates the three slices horizontally and saves as a PNG image.
+    If mask_* are provided, overlays them in semi-transparent green.
     Applies resampling based on physical spacing to correct anisotropy.
     spacing: (dz, dy, dx)
     """
@@ -51,10 +66,32 @@ def save_triview_image(axial, coronal, sagittal, spacing, output_path):
     cor_res = resample_slice(coronal, cor_spacing)
     sag_res = resample_slice(sagittal, sag_spacing)
 
+    # Resample mask slices if provided
+    if mask_axial is not None:
+        ax_mask = resample_slice(mask_axial.astype(np.float32), ax_spacing) > 0.5
+    else:
+        ax_mask = None
+    if mask_coronal is not None:
+        cor_mask = resample_slice(mask_coronal.astype(np.float32), cor_spacing) > 0.5
+    else:
+        cor_mask = None
+    if mask_sagittal is not None:
+        sag_mask = resample_slice(mask_sagittal.astype(np.float32), sag_spacing) > 0.5
+    else:
+        sag_mask = None
+
     # Normalize slices
     ax_norm = normalize_slice(ax_res)
     cor_norm = normalize_slice(cor_res)
     sag_norm = normalize_slice(sag_res)
+    
+    # Overlay masks in semi-transparent green
+    if ax_mask is not None:
+        ax_norm = overlay_mask(ax_norm, ax_mask)
+    if cor_mask is not None:
+        cor_norm = overlay_mask(cor_norm, cor_mask)
+    if sag_mask is not None:
+        sag_norm = overlay_mask(sag_norm, sag_mask)
     
     # Resize to have same height for horizontal concatenation
     h = max(ax_norm.shape[0], cor_norm.shape[0], sag_norm.shape[0])
@@ -63,7 +100,10 @@ def save_triview_image(axial, coronal, sagittal, spacing, output_path):
         if img.shape[0] < target_h:
             pad_top = (target_h - img.shape[0]) // 2
             pad_bottom = target_h - img.shape[0] - pad_top
-            return np.pad(img, ((pad_top, pad_bottom), (0, 0)), mode='constant')
+            pad_widths = [(pad_top, pad_bottom), (0, 0)]
+            if img.ndim == 3:
+                pad_widths.append((0, 0))  # RGB channel
+            return np.pad(img, pad_widths, mode='constant')
         return img
         
     ax_pad = pad_to_height(ax_norm, h)
@@ -74,16 +114,10 @@ def save_triview_image(axial, coronal, sagittal, spacing, output_path):
     img = Image.fromarray(triview)
     img.save(output_path)
 
-def extract_triview_slices(volume, center):
+def extract_triview_slices(volume, center, mask=None):
     """
     Extracts tri-view slices (Axial, Coronal, Sagittal) centered at the given 3D coordinate.
-    
-    Args:
-        volume (np.ndarray): 3D volume data
-        center (tuple): (z, y, x) center coordinate
-        
-    Returns:
-        tuple: (axial, coronal, sagittal) 2D slices
+    If mask is provided, also returns corresponding mask slices for overlay.
     """
     z, y, x = center
     z = max(0, min(z, volume.shape[0] - 1))
@@ -93,6 +127,12 @@ def extract_triview_slices(volume, center):
     axial = volume[z, :, :]
     coronal = volume[:, y, :]
     sagittal = volume[:, :, x]
+    
+    if mask is not None:
+        m_ax = mask[z, :, :]
+        m_cor = mask[:, y, :]
+        m_sag = mask[:, :, x]
+        return (axial, coronal, sagittal), (m_ax, m_cor, m_sag)
     
     return axial, coronal, sagittal
 
@@ -150,27 +190,10 @@ def find_next_clicks(pred_mask, gt_mask, spacing=(1.0, 1.0, 1.0)):
     return results
 
 
-def find_next_click(pred_mask, gt_mask, spacing=(1.0, 1.0, 1.0)):
-    """
-    Legacy: Finds only the next positive click (largest False Negative cluster).
-    """
-    fn_mask = np.logical_and(gt_mask == 1, pred_mask == 0)
-    if not np.any(fn_mask):
-        return None
-    labeled_fn, num_features = label(fn_mask)
-    if num_features == 0:
-        return None
-    component_sizes = np.bincount(labeled_fn.ravel())
-    component_sizes[0] = 0
-    largest_component_label = component_sizes.argmax()
-    largest_fn_mask = (labeled_fn == largest_component_label)
-    dist_transform = distance_transform_edt(largest_fn_mask, sampling=spacing)
-    return np.unravel_index(np.argmax(dist_transform), dist_transform.shape)
-
 def generate_trajectory(sam_model, volume, gt_mask, target_name, volume_id, spacing=(1.0, 1.0, 1.0), max_turns=5, output_dir="data/trajectories", image_dir="data/images"):
     """
-    Simulates the interaction and generates a trajectory JSON and corresponding tri-view images.
-    Supports both positive (add) and negative (remove) clicks.
+    Simulates an expert interaction trajectory. Generates tri-view images WITH mask overlay
+    (semi-transparent green), action JSON with correct schema, and delta-IoU progress filtering.
     """
     os.makedirs(output_dir, exist_ok=True)
     os.makedirs(image_dir, exist_ok=True)
@@ -179,34 +202,35 @@ def generate_trajectory(sam_model, volume, gt_mask, target_name, volume_id, spac
     points = []
     labels = []
     
-    # 1. Initial prompt: Centroid of GT mask
     if np.sum(gt_mask) == 0:
         print(f"Skipping {volume_id}: Empty GT mask.")
         return
-        
-    z_c, y_c, x_c = [int(c) for c in center_of_mass(gt_mask)]
-    current_center = (z_c, y_c, x_c)
     
-    sam_model.set_image(volume)
+    z_c, y_c, x_c = [int(c) for c in center_of_mass(gt_mask)]
+    # Turn 0 focus: volume center (not GT centroid) so MLLM sees a realistic initial view
+    current_center = (volume.shape[0]//2, volume.shape[1]//2, volume.shape[2]//2)
+    
+    sam_model.set_image(volume, gt_mask)
     pred_mask = np.zeros(volume.shape, dtype=np.uint8)
+    prev_iou = 0.0
     
     for turn in range(max_turns):
-        # Render and save tri-view slices (centered on the initial centroid for stability)
-        ax, cor, sag = extract_triview_slices(volume, current_center)
+        # Render tri-view with mask overlay
+        slices, mask_slices = extract_triview_slices(volume, current_center, mask=pred_mask)
+        ax, cor, sag = slices
+        m_ax, m_cor, m_sag = mask_slices
         img_name = f"{volume_id}_{target_name}_t{turn}.png"
         img_path = os.path.join(image_dir, img_name)
-        save_triview_image(ax, cor, sag, spacing, img_path)
+        save_triview_image(ax, cor, sag, spacing, img_path,
+                           mask_axial=m_ax, mask_coronal=m_cor, mask_sagittal=m_sag)
         
         # Determine action
         if turn == 0:
-            # Initial positive click at centroid
-            action_point = current_center
+            # Initial positive click at GT centroid (the prompt point, not the view center)
+            action_point = (z_c, y_c, x_c)
             click_type = "positive"
         else:
-            # Check both FNs (need to add) and FPs (need to remove)
             clicks = find_next_clicks(pred_mask, gt_mask, spacing)
-            
-            # Prioritize positive clicks (adding missing regions)
             if clicks["positive"] is not None:
                 action_point = clicks["positive"]
                 click_type = "positive"
@@ -214,55 +238,81 @@ def generate_trajectory(sam_model, volume, gt_mask, target_name, volume_id, spac
                 action_point = clicks["negative"]
                 click_type = "negative"
             else:
-                # Perfect segmentation: stop
                 trajectory[f"turn_{turn}"] = {
-                    "image": img_path,
+                    "image": img_path.replace("\\", "/"),
                     "instruction": f"Segment the {target_name}",
+                    "iou_after": round(prev_iou, 4),
                     "action": {"name": "stop_action"}
                 }
                 break
-                
-        # Record point and predict
+        
+        # Predict mask
         points.append(action_point)
         labels.append(1 if click_type == "positive" else 0)
         pred_mask = sam_model.predict_mask(points, labels)
-        
-        # Compute IoU
         iou = compute_iou_3d(pred_mask, gt_mask)
-        print(f"Turn {turn}: IoU = {iou:.4f}, Click = {action_point}, Type = {click_type}")
+        delta_iou = iou - prev_iou
+        prev_iou = iou
         
-        # Record trajectory turn (normalize path to forward slashes)
-        img_path_normalized = img_path.replace("\\", "/")
+        # Delta-IoU progress check: retry at next error cluster if delta <= threshold
+        if turn > 0 and delta_iou <= 0.04:
+            for retry in range(3):
+                clicks = find_next_clicks(pred_mask, gt_mask, spacing)
+                alt_pt = clicks.get("positive") or clicks.get("negative")
+                if alt_pt is None or alt_pt == action_point:
+                    break
+                test_pts = points[:-1] + [alt_pt]
+                test_labels = labels[:-1] + [1 if clicks.get("positive") == alt_pt else 0]
+                test_mask = sam_model.predict_mask(test_pts, test_labels)
+                test_iou = compute_iou_3d(test_mask, gt_mask)
+                if test_iou - (iou - delta_iou) > 0.04:
+                    points[-1] = alt_pt
+                    labels[-1] = test_labels[-1]
+                    action_point = alt_pt
+                    click_type = "positive" if clicks.get("positive") == alt_pt else "negative"
+                    pred_mask = test_mask
+                    iou = test_iou
+                    prev_iou = iou
+                    break
+        
+        # Update focus center to predicted mask centroid for Turn 1+
+        if pred_mask.sum() > 0:
+            current_center = [int(c) for c in center_of_mass(pred_mask.astype(np.uint8))]
+        else:
+            current_center = action_point
+        
+        print(f"Turn {turn}: IoU = {iou:.4f}, Delta = {delta_iou:.4f}, Click = {action_point}, Type = {click_type}")
+        
+        # Record turn with CORRECT action schema (nested arguments, from README/MedSAM-Agent)
         trajectory[f"turn_{turn}"] = {
-            "image": img_path_normalized,
+            "image": img_path.replace("\\", "/"),
             "instruction": f"Segment the {target_name}",
+            "iou_after": round(iou, 4),
             "action": {
-                "name": "add_3d_point", 
-                "point_3d": list(int(p) for p in action_point), 
-                "type": click_type
+                "name": "add_3d_point",
+                "arguments": {
+                    "point_3d": [int(p) for p in action_point],
+                    "point_type": click_type
+                }
             }
         }
         
-        # Update center to latest click point for consistent behavior with RL environment
-        current_center = action_point
-        
-        if iou > 0.95:  # Convergence threshold
+        if iou > 0.80:  # Convergence threshold (0.90 is target; 0.80 triggers stop for near-perfect)
             turn += 1
-            ax, cor, sag = extract_triview_slices(volume, current_center)
+            slices, ms = extract_triview_slices(volume, current_center, mask=pred_mask)
             img_name = f"{volume_id}_{target_name}_t{turn}.png"
             img_path = os.path.join(image_dir, img_name)
-            save_triview_image(ax, cor, sag, spacing, img_path)
-            
+            save_triview_image(*slices, spacing, img_path,
+                               mask_axial=ms[0], mask_coronal=ms[1], mask_sagittal=ms[2])
             trajectory[f"turn_{turn}"] = {
-                "image": img_path,
+                "image": img_path.replace("\\", "/"),
                 "instruction": f"Segment the {target_name}",
+                "iou_after": round(iou, 4),
                 "action": {"name": "stop_action"}
             }
             break
-            
+    
     out_file = os.path.join(output_dir, f"{volume_id}_{target_name}.json")
-    # Normalize path separators to forward slashes for cross-platform compatibility
     with open(out_file, 'w', encoding='utf-8') as f:
         json.dump(trajectory, f, indent=2, ensure_ascii=False)
-        
     return trajectory

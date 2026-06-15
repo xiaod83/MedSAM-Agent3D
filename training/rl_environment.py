@@ -1,34 +1,26 @@
 import torch
 import numpy as np
 
-def compute_reward(iou, previous_iou=None, step_cost=-0.1):
+def compute_reward(iou, previous_iou=None, step_cost=-0.05, prev_iou_peak=None, format_ok=True, is_stop=False):
     """
-    Computes RL reward for a segmentation step.
-    
-    Args:
-        iou: Current IoU after this action
-        previous_iou: IoU before this action (None for first step)
-        step_cost: Fixed penalty per action to encourage efficiency
-    
-    Returns:
-        float: Reward value
+    Computes RL reward matching the README specification.
     """
-    if previous_iou is None:
-        # First step gets the full IoU as reward (minus step cost)
-        return iou + step_cost
-    
-    delta_iou = iou - previous_iou
-    
-    # Bonus for reaching high IoU
-    bonus = 0.5 if iou > 0.9 else 0.0
-    
-    # Penalty for regression
-    regression_penalty = -0.05 if delta_iou < 0 else 0.0
-    
-    # Early stopping bonus: larger if converged sooner
-    early_stop_bonus = 0.2 if iou > 0.95 else 0.0
-    
-    return delta_iou + bonus + regression_penalty + step_cost + early_stop_bonus
+    reward = 0.0
+    if format_ok:
+        reward += 0.5  # Format reward
+    dice = 2 * iou / (1 + iou + 1e-8)
+    reward += 0.5 * dice + 0.5 * iou  # Quality reward (Dice + IoU)
+    if previous_iou is not None:
+        delta_iou = iou - previous_iou
+        if delta_iou > 0:
+            reward += 0.2  # Improvement bonus
+        if delta_iou < 0:
+            reward -= 0.3  # Overshoot penalty
+    if step_cost < 0 and previous_iou is not None:
+        reward += step_cost  # Tool-cost penalty (exempts turn 0)
+    if is_stop:
+        reward += 0.3  # Stop bonus
+    return reward
 
 class MedSAMEnvironment:
     def __init__(self, sam_model, volume, gt_mask, target_name, volume_id, spacing=(1.0, 1.0, 1.0)):
@@ -43,8 +35,8 @@ class MedSAMEnvironment:
     def reset(self):
         self.points = []
         self.labels = []
-        self.current_iou = 0.0
-        self.sam.set_image(self.volume)
+        self.current_iou = None  # None = turn 0 exempt from tool-cost
+        self.sam.set_image(self.volume, self.gt_mask)
         
         from scipy.ndimage import center_of_mass
         if np.sum(self.gt_mask) > 0:
@@ -121,7 +113,7 @@ class MedSAMEnvironment:
         from data_generation.trajectory_generator import compute_iou_3d
         new_iou = compute_iou_3d(pred_mask, self.gt_mask)
         
-        reward = compute_reward(new_iou, self.current_iou, step_cost=-0.1)
+        reward = compute_reward(new_iou, self.current_iou, step_cost=-0.05)
         self.current_iou = new_iou
         self.current_center = action_point
         
