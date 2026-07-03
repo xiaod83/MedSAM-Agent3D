@@ -1,516 +1,158 @@
-MedSAM-Agent and SAMMED=3d adapted for each other
+# MedSAM-Agent3D
 
+**MLLM-driven agentic loop for 3D medical segmentation with frozen SAM-Med3D.**
 
+A multimodal LLM (Qwen3-VL) looks at tri-view 2D slices from a 3D volume, reasons about segmentation quality, and iteratively calls SAM-Med3D with 3D prompt coordinates — no training required to run the loop.
 
-\# SAM-Med3D-Agent: Complete Training Blueprint
+---
 
-\## Goal
-
-Train a multimodal LLM (Qwen3-VL) to act as an intelligent prompting agent for a frozen SAM-Med3D model. The MLLM looks at 3D medical volumes (represented as tri-view 2D slices), reasons about segmentation quality, and outputs 3D prompt coordinates to guide SAM-Med3D toward accurate volumetric segmentation — iteratively and autonomously.
-
-
-
-\*\*SAM-Med3D is never trained. It is a frozen inference engine. Only the MLLM is trained.\*\*
-
-
-
-\---
-
-
-
-\## System Architecture Overview
-
-
+## Current Focus: The Agentic Loop
 
 ```
-
-\[3D Medical Volume]
-
-&#x20;       ↓
-
-\[Multi-View Interface] → extracts Axial, Coronal, Sagittal slices
-
-&#x20;       ↓
-
-\[MLLM - Qwen3-VL] ← sees tri-view image + text instruction
-
-&#x20;       ↓
-
-\[JSON Tool Call] → add\_3d\_point / add\_3d\_bbox / stop\_action
-
-&#x20;       ↓
-
-\[SAM-Med3D - FROZEN] → receives 3D prompt → outputs 3D mask
-
-&#x20;       ↓
-
-\[Updated Mask] → re-render tri-view → feed back to MLLM
-
-&#x20;       ↓
-
-\[Loop until stop\_action]
-
+[3D Medical Volume]
+       ↓
+[Multi-View Interface] → extracts Axial | Coronal | Sagittal slices
+       ↓
+[MLLM - Qwen3-VL] ← sees tri-view image + text instruction
+       ↓
+[JSON Tool Call] → add_3d_bbox / add_3d_point / stop_action
+       ↓
+[SAM-Med3D - FROZEN] → receives 3D prompt → outputs 3D mask
+       ↓
+[Low-Res Logits] → propagated to next turn for iterative refinement
+       ↓
+[Updated Mask] → re-render tri-view → feed back to MLLM
+       ↓
+[Loop until stop_action]
 ```
 
+The MLLM is **not fine-tuned** — this works with a vanilla instruct model out of the box.
 
+---
 
-\---
+## Quick Start
 
+```bash
+# Single case
+python agent_inference.py \
+    --volume data/some_volume.nii.gz \
+    --mask data/some_mask.nii.gz \
+    --target liver \
+    --model Qwen/Qwen3-VL-8B-Instruct \
+    --max-turns 5
 
-
-\## Component 1: Multi-View Visual Interface
-
-
-
-\### Purpose
-
-Bridge the dimensionality gap. SAM-Med3D works in 3D. The MLLM only understands 2D images. This component translates the 3D world into something the MLLM can see.
-
-
-
-\### Logic
-
-\- Extract three orthogonal 2D slices from the 3D volume
-
-\- Center the slices on the \*\*focus point\*\*:
-
-&#x20; - Turn 0 (no mask yet): center of the volume OR center of provided bounding box
-
-&#x20; - Turn 1+: centroid of the current predicted 3D mask
-
-\- Overlay the current predicted mask in semi-transparent green on each slice
-
-\- Stitch the three views side-by-side into one image: `\[Axial | Coronal | Sagittal]`
-
-\- Feed the combined image to the MLLM as a single input
-
-
-
-\---
-
-
-
-\## Component 2: Action Space (JSON Tool Schema)
-
-
-
-\### Purpose
-
-Define the exact structured outputs the MLLM is allowed to produce. These map directly to SAM-Med3D's accepted input prompts.
-
-
-
-\### Tools
-
-
-
-```json
-
-// Tool 1: Place a 3D point prompt
-
-{
-
-&#x20; "name": "add\_3d\_point",
-
-&#x20; "arguments": {
-
-&#x20;   "point\_3d": \[x, y, z],
-
-&#x20;   "point\_type": "positive"  // or "negative"
-
-&#x20; }
-
-}
-
-
-
-// Tool 2: Place a 3D bounding box prompt
-
-{
-
-&#x20; "name": "add\_3d\_bbox",
-
-&#x20; "arguments": {
-
-&#x20;   "bbox\_3d": \[x1, y1, z1, x2, y2, z2]
-
-&#x20; }
-
-}
-
-
-
-// Tool 3: Terminate the loop
-
-{
-
-&#x20; "name": "stop\_action"
-
-}
-
+# Batch evaluation on TotalSegmentator
+python eval_batch.py \
+    --ts-dir Totalsegmentator_dataset_v201 \
+    --model Qwen/Qwen3-VL-8B-Instruct \
+    --max-samples 10 \
+    --max-turns 5
 ```
 
+### Arguments
 
-
-\### Coordinate System Rules
-
-\- All coordinates are in \*\*voxel space\*\* matching the original volume dimensions `\[Z, Y, X]`
-
-\- Points clicked on the 2D tri-view images must be \*\*mapped back to 3D voxel coordinates\*\* before being passed to SAM-Med3D
-
-\- The mapping uses the known focus point and slice indices at the time of the click
-
-
-
-\---
-
-
-
-\## Component 3: Trajectory Dataset Generation
-
-
-
-\### Purpose
-
-Generate thousands of simulated expert interaction trajectories. This is the training data for the MLLM. SAM-Med3D runs the actual segmentation during simulation — the dataset records what the "expert" saw and what action it took at each turn.
-
-
-
-\### Algorithm
-
-
-
-```
-
-For each labeled volume in the dataset:
-
-
-
-&#x20; 1. INITIAL PROMPT
-
-&#x20;    - Option A: Place a point at the centroid of the GT mask \[x, y, z]
-
-&#x20;    - Option B: Place a bounding box around GT mask with random jitter ±5-10 voxels
-
-&#x20;    - Render tri-view centered at volume center → save image\_t0
-
-
-
-&#x20; 2. RUN SAM-MED3D
-
-&#x20;    - Pass the prompt → receive predicted 3D mask
-
-&#x20;    - Compute 3D IoU vs ground truth
-
-
-
-&#x20; 3. ERROR ANALYSIS
-
-&#x20;    - Find all False Negative voxels (GT=1, Pred=0) → missed regions
-
-&#x20;    - Find all False Positive voxels (GT=0, Pred=1) → over-segmented regions
-
-&#x20;    - Apply 3D distance transform to find centroid of largest error cluster
-
-&#x20;    - Assign point type: FN cluster → positive point, FP cluster → negative point
-
-
-
-&#x20; 4. PROGRESS CHECK
-
-&#x20;    - Place new point → run SAM-Med3D → compute new 3D IoU
-
-&#x20;    - If ΔIoU > τ (threshold = 0.04): accept the click, continue
-
-&#x20;    - If ΔIoU ≤ τ: retry at next largest error cluster
-
-&#x20;    - Render updated tri-view centered on new mask centroid → save image\_tN
-
-
-
-&#x20; 5. TERMINATION
-
-&#x20;    - Stop when: IoU converges, max turns reached (e.g., 5), or IoU > 0.90
-
-&#x20;    - Final action recorded as stop\_action
-
-
-
-&#x20; 6. STORE TRAJECTORY
-
-&#x20;    {
-
-&#x20;      "volume\_id": "case\_042",
-
-&#x20;      "target\_structure": "liver",
-
-&#x20;      "turns": \[
-
-&#x20;        {
-
-&#x20;          "turn": 0,
-
-&#x20;          "image\_path": "trajectories/case\_042/turn\_0.png",
-
-&#x20;          "instruction": "Segment the liver",
-
-&#x20;          "action": {
-
-&#x20;            "name": "add\_3d\_point",
-
-&#x20;            "arguments": {"point\_3d": \[144, 112, 64], "point\_type": "positive"}
-
-&#x20;          },
-
-&#x20;          "iou\_after": 0.71
-
-&#x20;        },
-
-&#x20;        {
-
-&#x20;          "turn": 1,
-
-&#x20;          "image\_path": "trajectories/case\_042/turn\_1.png",
-
-&#x20;          "instruction": "Segment the liver",
-
-&#x20;          "action": {
-
-&#x20;            "name": "add\_3d\_point",
-
-&#x20;            "arguments": {"point\_3d": \[150, 120, 50], "point\_type": "positive"}
-
-&#x20;          },
-
-&#x20;          "iou\_after": 0.87
-
-&#x20;        },
-
-&#x20;        {
-
-&#x20;          "turn": 2,
-
-&#x20;          "image\_path": "trajectories/case\_042/turn\_2.png",
-
-&#x20;          "instruction": "Segment the liver",
-
-&#x20;          "action": {"name": "stop\_action"},
-
-&#x20;          "iou\_after": 0.87
-
-&#x20;        }
-
-&#x20;      ]
-
-&#x20;    }
-
-```
-
-
-
-\### Target Dataset Size
-
-\- Minimum: 10,000 trajectories across diverse structures and modalities
-
-\- Recommended: 50,000+ for robust generalization
-
-
-
-\---
-
-
-
-\## Component 4: Two-Phase MLLM Training
-
-
-
-\### Phase 1 — Supervised Fine-Tuning (SFT)
-
-
-
-| Item | Detail |
-
-|---|---|
-
-| \*\*Base Model\*\* | Qwen3-VL |
-
-| \*\*Input\*\* | Tri-view PNG + conversation history + text instruction |
-
-| \*\*Output\*\* | JSON tool call string |
-
-| \*\*Loss\*\* | Cross-entropy (next token prediction) |
-
-| \*\*Framework\*\* | LLaMA-Factory or HuggingFace TRL |
-
-| \*\*Data Format\*\* | ChatML / ShareGPT conversation format |
-
-| \*\*Goal\*\* | MLLM learns to imitate the simulated expert trajectories |
-
-
-
-\*\*Example training sample (ChatML format):\*\*
-
-```json
-
-{
-
-&#x20; "messages": \[
-
-&#x20;   {
-
-&#x20;     "role": "system",
-
-&#x20;     "content": "You are a 3D medical segmentation agent. You are looking at three orthogonal slices (Axial, Coronal, Sagittal) from a 3D medical volume stitched left-to-right. The current segmentation mask is shown in semi-transparent green. Output the correct tool call to improve the segmentation."
-
-&#x20;   },
-
-&#x20;   {
-
-&#x20;     "role": "user",
-
-&#x20;     "content": \[
-
-&#x20;       {"type": "image", "image": "trajectories/case\_042/turn\_0.png"},
-
-&#x20;       {"type": "text", "text": "Segment the liver"}
-
-&#x20;     ]
-
-&#x20;   },
-
-&#x20;   {
-
-&#x20;     "role": "assistant",
-
-&#x20;     "content": "<tool\_call>{\\"name\\": \\"add\_3d\_point\\", \\"arguments\\": {\\"point\_3d\\": \[144, 112, 64], \\"point\_type\\": \\"positive\\"}}</tool\_call>"
-
-&#x20;   },
-
-&#x20;   {
-
-&#x20;     "role": "user",
-
-&#x20;     "content": \[
-
-&#x20;       {"type": "image", "image": "trajectories/case\_042/turn\_1.png"},
-
-&#x20;       {"type": "text", "text": "Segment the liver"}
-
-&#x20;     ]
-
-&#x20;   },
-
-&#x20;   {
-
-&#x20;     "role": "assistant",
-
-&#x20;     "content": "<tool\_call>{\\"name\\": \\"stop\_action\\"}</tool\_call>"
-
-&#x20;   }
-
-&#x20; ]
-
-}
-
-```
-
-
-
-\---
-
-
-
-\### Phase 2 — Reinforcement Learning with Verifiable Rewards (GRPO)
-
-
-
-| Item | Detail |
-
-|---|---|
-
-| \*\*Algorithm\*\* | GRPO (Group Relative Policy Optimization) |
-
-| \*\*Environment\*\* | Live SAM-Med3D inference in the training loop |
-
-| \*\*Reward Signal\*\* | Computed from 3D mask quality vs ground truth |
-
-| \*\*Goal\*\* | MLLM learns to exceed imitation — find better strategies |
-
-
-
-\*\*Reward Function:\*\*
-
-
-
-| Reward Component | Value | Trigger |
-
+| Argument | Default | Description |
 |---|---|---|
+| `--model` | `Qwen/Qwen3-VL-8B-Instruct` | HuggingFace model ID or local path |
+| `--sam-ckpt` | `sam_med3d_turbo.pth` | Path to frozen SAM-Med3D checkpoint |
+| `--max-turns` | `5` | Max MLLM → SAM-Med3D iterations |
+| `--temperature` | `0.1` | MLLM sampling temp (0 = greedy) |
+| `--load-in-4bit` | off | 4-bit quantized MLLM |
+| `--output-dir` | `eval_outputs` | Tri-view snapshots + metrics |
 
-| Format Reward | +0.5 | Correct JSON tool schema output |
+---
 
-| Quality Reward | 3D Dice + 3D IoU (weighted sum) | After each SAM-Med3D inference |
+## Architecture
 
-| Improvement Bonus | +0.2 per turn | Each turn where IoU strictly increases |
+### 1. Multi-View Interface
 
-| Overshoot Penalty | -0.3 | Any turn where IoU decreases |
+Bridges the dimensionality gap: SAM-Med3D works in 3D, the MLLM sees 2D.
 
-| Tool-Cost Penalty | -0.05 per extra turn | Every turn beyond turn 1 |
+- Extracts three orthogonal slices from the 3D volume (axial, coronal, sagittal)
+- Centers on the current **focus point**:
+  - Turn 0: volume center
+  - Turn 1+: centroid of the current predicted mask
+- Overlays the predicted mask as semi-transparent green on each slice
+- Stitches into one image: `[Axial | Coronal | Sagittal]`
 
-| Stop Bonus | +0.3 | Calling stop\_action at peak IoU |
+### 2. Action Space
 
+The MLLM emits structured JSON tool calls with normalized `[0, 999]` coordinates
+(following MedSAM-Agent's convention for volume-size invariance):
 
+```json
+// Initialize with a 3D bounding box
+{"name": "add_3d_bbox", "arguments": {"bbox_3d": [z1, y1, x1, z2, y2, x2]}}
 
-\---
+// Refine with a 3D point
+{"name": "add_3d_point", "arguments": {"point_3d": [z, y, x], "point_type": "positive"}}
 
+// Stop the refinement loop
+{"name": "stop_action"}
+```
 
+Coordinates are denormalized to voxel space inside the agent loop (`norm/999 * dim`).
 
-\## Training Definition of Done
+### 3. Agent Loop (`agent_inference.py`)
 
+At each turn:
+1. Render tri-view centered on mask centroid → save as PNG
+2. Feed tri-view + instruction to Qwen3-VL
+3. Parse JSON tool call from model output
+4. **Bbox turn**: pass 3D bbox → SAM-Med3D → get initial mask + low-res logits
+5. **Point turn**: pass latest point + previous logits → SAM-Med3D → refined mask
+6. Compute IoU/Dice against ground truth (if available)
+7. Update conversation history (text-only to avoid VRAM blowup)
+8. Loop until `stop_action` or max turns
 
+Iterative refinement follows the MedSAM-Agent pattern: first call uses `no_mask_embed`
+in the prompt encoder; subsequent calls pass prior low-res logits for proper
+iterative refinement. Bounding boxes use the newly fixed 3D box embeddings in
+SAM-Med3D's prompt encoder.
 
-> The MLLM reliably guides SAM-Med3D to a \*\*3D Dice Score above target threshold\*\* on the held-out validation set, using \*\*3 or fewer interaction turns\*\* on average.
+---
 
+## Project Structure
 
+```
+├── agent_inference.py         # ★ Agent loop (the main workflow)
+├── eval_batch.py              # Batch evaluation on TotalSegmentator
+├── models/
+│   └── sam_med3d_wrapper.py   # FrozenSAM-Med3D — torchio preprocessing + coordinate mapping
+├── utils/
+│   └── io_utils.py            # NIfTI loading & dataset parsing
+├── sam_med3d_turbo.pth        # SAM-Med3D checkpoint (frozen)
+├── SAM-Med3D/                 # Reference SAM-Med3D repo (modified prompt encoder)
+├── MedSAM-Agent/              # Reference 2D MedSAM-Agent code
+├── requirements.txt
+└── README.md
+```
 
-Once this bar is hit, the agentic loop (navigation tools, scroll actions, upstream detection) is added on top.
+---
 
+## Requirements
 
+Install from `requirements.txt`:
 
-\---
+```bash
+pip install -r requirements.txt
+```
 
+**Key dependencies:** PyTorch, Transformers, Qwen3-VL, nibabel, torchio, SAM-Med3D, OpenCV, scipy.
 
+---
 
-\## What Is NOT Being Built Yet
+## What Is NOT Built Yet
 
-\- ❌ Navigation / scroll tools
+- ❌ Navigation / scroll tools (scrolling through z-stacks)
+- ❌ MIP-based blind search
+- ❌ Full autonomous clinical deployment loop
+- ❌ Modifications to SAM-Med3D weights (it stays frozen)
 
-\- ❌ MIP-based blind search
+---
 
-\- ❌ Full autonomous clinical deployment loop
+## References
 
-\- ❌ Any modification to SAM-Med3D weights
-
-
-
-\---
-
-
-
-\## Immediate Next Steps
-
-
-
-1\. Confirm base dataset (modality + target structures)
-
-2\. Confirm base MLLM (Qwen3-VL recommended)
-
-3\. Set up SAM-Med3D inference pipeline (frozen)
-
-4\. Build and run trajectory generation script
-
-5\. Convert trajectories to ChatML format
-
-6\. Run Phase 1 SFT
-
-7\. Evaluate → if plateau, move to Phase 2 GRPO
-
+- [SAM-Med3D](https://github.com/uni-medical/SAM-Med3D)
+- [MedSAM-Agent](https://github.com/bowang-lab/MedSAM-Agent)
+- [Qwen3-VL](https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct)

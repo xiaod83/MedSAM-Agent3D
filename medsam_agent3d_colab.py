@@ -117,7 +117,7 @@ else:
 # Cell 7: Verify TotalSegmentator data
 # ======================================================================
 
-from data_generation.totalsegmentator_loader import get_totalsegmentator_dataset
+from utils.io_utils import get_totalsegmentator_dataset
 
 TS_DIR = os.path.join(REPO_DIR, 'Totalsegmentator_dataset_v201')
 dataset = get_totalsegmentator_dataset(TS_DIR)
@@ -161,7 +161,7 @@ print('✅ SAM-Med3D loaded.')
 # ======================================================================
 
 from agent_inference import run_agent_loop
-from data_generation.totalsegmentator_loader import load_nifti
+from utils.io_utils import load_nifti
 import numpy as np
 
 # Pick the first sample from the dataset

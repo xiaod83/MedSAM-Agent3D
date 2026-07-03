@@ -39,6 +39,17 @@ class FrozenSAMMed3D:
         print("Loading SAM-Med3D Turbo...")
         sam = build_sam3D_vit_b_ori()
         state_dict = _load_turbo_checkpoint(checkpoint_path, 'cpu')
+
+        # SAM-Med3D's checkpoint only has 2 point embeddings (pos/neg).
+        # We added 2 more (bbox_tl, bbox_br) in PromptEncoder3D.
+        # Initialize missing bbox corner embeddings with small random values.
+        embed_dim = sam.prompt_encoder.embed_dim
+        for i in range(2, 4):
+            key = f'prompt_encoder.point_embeddings.{i}.weight'
+            if key not in state_dict:
+                state_dict[key] = (torch.randn(1, embed_dim) * 0.02).to('cpu')
+                print(f"  Initialized missing {key} with random init")
+
         sam.load_state_dict(state_dict, strict=True)
         self.model = sam.to(self.device)
         self.model.eval()
@@ -97,42 +108,80 @@ class FrozenSAMMed3D:
 
         print(f"Features: {self._orig_shape} -> ROI {self._roi_shape}")
 
-    def predict_mask(self, points, labels):
-        """Predict mask for points in original (z,y,x) coordinates."""
+    def _map_original_to_roi(self, point_zyx):
+        """Map a single (z,y,x) point from original volume coords to ROI (x,y,z)."""
+        inv_roi = np.linalg.inv(self._roi_affine)
+        world = np.array([point_zyx[2], point_zyx[1], point_zyx[0], 1.0])
+        roi_vox = inv_roi @ world
+        return np.clip([roi_vox[0], roi_vox[1], roi_vox[2]], 0, CROP_SIZE - 1)
+
+    def _map_original_bbox_to_roi(self, bbox_zyx):
+        """Map 3D bbox (z1,y1,x1,z2,y2,x2) from original -> ROI (x1,y1,z1,x2,y2,z2)."""
+        z1, y1, x1, z2, y2, x2 = bbox_zyx
+        tl = self._map_original_to_roi((z1, y1, x1))
+        br = self._map_original_to_roi((z2, y2, x2))
+        return [tl[0], tl[1], tl[2], br[0], br[1], br[2]]
+
+    def predict_mask(self, points=None, labels=None, box_3d=None, mask_logits=None):
+        """
+        Predict mask from 3D prompts.
+
+        Follows MedSAM-Agent's iterative refinement pattern:
+        - First call: points + optional box_3d, with mask_logits=None
+          (uses no_mask_embed in prompt encoder).
+        - Subsequent calls: only the latest point + previous mask_logits.
+
+        Args:
+            points: List of (z, y, x) tuples in original voxel coords.
+            labels: List of ints (1=foreground, 0=background).
+            box_3d: Optional (z1, y1, x1, z2, y2, x2) in original voxel coords.
+            mask_logits: Low-res logits from previous prediction (for iterative refinement),
+                         or None on first call.
+
+        Returns:
+            (binary_mask_3d, low_res_logits):
+                binary_mask_3d: np.ndarray (Z, Y, X) uint8 in original space.
+                low_res_logits: torch.Tensor (1, 1, 32, 32, 32) for next iteration.
+        """
         if self._features is None:
             raise RuntimeError("Call set_image() first")
 
         device = self._features.device
 
-        # Map all points from original (z,y,x) -> ROI (x,y,z) pixel coords
-        # Uses the stored ROI affine for exact mapping through the full
-        # ToCanonical -> Resample -> CropOrPad chain.
-        # Original affine is identity: world(x,y,z) = original(x,y,z).
-        # ROI affine maps ROI voxel(z,y,x) -> world(x_ras, y_ras, z_ras).
-        # So: ROI voxel = inv(roi_affine) @ [x_orig, y_orig, z_orig, 1]
-        pts = np.array(points, dtype=np.float32)
-        pts_xyz = np.zeros((0, 3), dtype=np.float32)  # safe default for empty points
-        if len(pts) > 0:
-            inv_roi = np.linalg.inv(self._roi_affine)
-            pts_roi = []
-            for p in pts:
-                # p = (z, y, x) in original array coords
-                # Original identity affine: world = [x, y, z] = [p[2], p[1], p[0]]
-                world = np.array([p[2], p[1], p[0], 1.0])
-                roi_vox = inv_roi @ world  # (x_roi, y_roi, z_roi, 1)
-                # SAM expects (x, y, z) order
-                pts_roi.append([roi_vox[0], roi_vox[1], roi_vox[2]])
-            pts_xyz = np.clip(np.array(pts_roi, dtype=np.float32), 0, CROP_SIZE - 1)
+        # --- Convert points to ROI (x,y,z) coordinates ---
+        if points is not None and len(points) > 0:
+            pts_roi = [self._map_original_to_roi(p) for p in points]
+            pts_xyz = np.array(pts_roi, dtype=np.float32)
+            coords = torch.tensor(pts_xyz, dtype=torch.float32, device=device).unsqueeze(0)
+            lbls = torch.tensor([labels], device=device)
+            points_tensor = (coords, lbls)
+        else:
+            points_tensor = None
 
-        zero_mask = torch.zeros(1, 1, CROP_SIZE, CROP_SIZE, CROP_SIZE, device=device)
-        coords = torch.tensor(pts_xyz, dtype=torch.float32, device=device).unsqueeze(0)
-        lbls = torch.tensor([labels], device=device)
+        # --- Convert box to ROI (x1,y1,z1,x2,y2,z2) coordinates ---
+        if box_3d is not None:
+            box_roi = self._map_original_bbox_to_roi(box_3d)
+            box_tensor = torch.tensor(box_roi, dtype=torch.float32, device=device).unsqueeze(0)
+        else:
+            box_tensor = None
 
+        # --- Mask logits: None -> no_mask_embed; provided -> embed_masks ---
+        # MedSAM-Agent pattern: pass None on first call, prior logits on subsequent.
+        if mask_logits is not None:
+            masks_input = mask_logits.to(device)
+        else:
+            masks_input = None
+
+        # --- Prompt encoding ---
         sparse_emb, dense_emb = self.model.prompt_encoder(
-            points=(coords, lbls), boxes=None, masks=zero_mask)
+            points=points_tensor,
+            boxes=box_tensor,
+            masks=masks_input,
+        )
 
+        # --- Mask decoding ---
         with torch.no_grad():
-            masks, _ = self.model.mask_decoder(
+            low_res_masks, _ = self.model.mask_decoder(
                 image_embeddings=self._features,
                 image_pe=self.model.prompt_encoder.get_dense_pe(),
                 sparse_prompt_embeddings=sparse_emb,
@@ -140,16 +189,20 @@ class FrozenSAMMed3D:
                 multimask_output=False,
             )
 
-        # Upsample to ROI size
-        m = F.interpolate(masks, size=self._roi_shape,
+        # low_res_masks shape: (1, 1, 32, 32, 32) — raw logits before upscaling.
+        # Store these for next iteration.
+        low_res_logits = low_res_masks.detach().cpu()
+
+        # Upsample to ROI size, sigmoid, threshold
+        m = F.interpolate(low_res_masks, size=self._roi_shape,
                           mode='trilinear', align_corners=False)
         binary_roi = (torch.sigmoid(m) > 0.5).float()
 
-        # Map ROI binary mask back to original volume space using torchio Resample
+        # Map ROI binary mask back to original volume space
         roi_label = tio.LabelMap(tensor=binary_roi.squeeze(0).cpu(), affine=self._roi_affine)
         resampler = tio.Resample(target=self._orig_subject.image,
                                   image_interpolation='nearest')
         back_projected = resampler(roi_label)
         mask = back_projected.data.numpy()[0].astype(np.uint8)
 
-        return mask
+        return mask, low_res_logits
