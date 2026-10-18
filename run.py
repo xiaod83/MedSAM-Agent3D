@@ -37,7 +37,7 @@ def main(argv=None):
     command, arguments = argv[0], argv[1:]
     if command == 'test':
         if arguments and arguments[0] == '--light':
-            for pattern in ('test_actions.py', 'test_colab_checkpoint.py', 'test_colab_remote.py', 'test_views.py', 'test_agent_model.py'):
+            for pattern in ('test_actions.py', 'test_colab_checkpoint.py', 'test_colab_remote.py', 'test_views.py', 'test_agent_model.py', 'test_case_manifest.py'):
                 status = subprocess.call([sys.executable, '-m', 'unittest', 'discover', '-s', 'tests', '-p', pattern], cwd=ROOT)
                 if status:
                     return status

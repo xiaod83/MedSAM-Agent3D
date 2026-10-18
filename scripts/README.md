@@ -10,4 +10,4 @@ Use the root `run.py` launcher:
 | `colab_remote.py` | `remote` (optional Linux/macOS Colab CLI route) |
 | `prepare_sam.py` | Called by setup to preserve the SAM import compatibility fix |
 
-`legacy/` contains the former single/batch wrappers, retained for compatibility. New work should use `run.py single` and `run.py batch`.
+Use `run.py single` and `run.py batch` for inference. Former standalone wrappers are retired.

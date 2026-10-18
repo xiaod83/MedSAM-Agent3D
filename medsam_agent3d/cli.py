@@ -161,6 +161,51 @@ def main_single(args=None):
 # Batch CLI
 # ---------------------------------------------------------------------------
 
+def _load_case_manifest(path):
+    """Read ordered evaluation cases; relative paths are relative to the manifest."""
+    import json
+    manifest_path = os.path.abspath(os.fspath(path))
+    with open(manifest_path, encoding="utf-8-sig") as stream:
+        cases = json.load(stream)
+    if not isinstance(cases, list) or not cases:
+        raise ValueError("Case manifest must be a nonempty JSON list of case objects")
+    manifest_dir = os.path.dirname(manifest_path)
+    validated, identities = [], set()
+    for index, item in enumerate(cases, 1):
+        if not isinstance(item, dict):
+            raise ValueError(f"Case {index}: expected an object")
+        entry = dict(item)
+        for key in ("volume_id", "target_name"):
+            value = entry.get(key)
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"Case {index}: {key} must be a nonempty string")
+            value = value.strip()
+            if value in (".", "..") or any(char in value for char in '/\\:*?"<>|'):
+                raise ValueError(f"Case {index}: {key} must be a safe single directory name")
+            entry[key] = value
+        identity = (entry["volume_id"], entry["target_name"])
+        if identity in identities:
+            raise ValueError(f"Case {index}: duplicate volume_id/target_name {identity}")
+        identities.add(identity)
+        volume_path = entry.get("volume_path") or entry.get("ct_path")
+        if not isinstance(volume_path, str) or not volume_path.strip():
+            raise ValueError(f"Case {index}: volume_path (or ct_path) is required")
+        entry["volume_path"] = volume_path
+        for key in ("volume_path", "mask_path"):
+            value = entry.get(key)
+            if value is None and key == "mask_path":
+                continue
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"Case {index}: {key} must be a nonempty file path")
+            resolved = os.path.abspath(os.path.join(manifest_dir, value))
+            if not os.path.isfile(resolved):
+                raise ValueError(f"Case {index}: {key} does not exist: {resolved}")
+            entry[key] = resolved
+        if "ct_path" in entry:
+            entry["ct_path"] = entry["volume_path"]
+        validated.append(entry)
+    return validated
+
 def main_batch(args=None):
     """CLI entry point for batch evaluation on TotalSegmentator.
 
@@ -176,6 +221,7 @@ def main_batch(args=None):
 
     parser.add_argument('--split', choices=['train', 'val', 'test', 'all'], default='test', help='Dataset metadata split; default held-out test')
     # Data
+    parser.add_argument('--cases-json', default=None, help='Ordered JSON case list; relative scan/mask paths resolve from the manifest directory; bypasses dataset split and shuffle')
     parser.add_argument(
         "--ts-dir", default="data/Totalsegmentator_dataset_v201",
         help="Path to TotalSegmentator dataset directory",
@@ -197,23 +243,24 @@ def main_batch(args=None):
     if project_root not in sys.path:
         sys.path.insert(0, project_root)
 
-    from medsam_agent3d.io import get_totalsegmentator_dataset, load_nifti
-    from medsam_agent3d.sam import FrozenSAMMed3D
-    from .agent import QwenVLAgent
-    from .evaluation import evaluate_dataset
-
     # --- Setup ---
     seed_everything(parsed.seed)
 
     os.makedirs(parsed.output_dir, exist_ok=True)
 
-    # --- Load dataset ---
-    print(f"Loading TotalSegmentator dataset from {parsed.ts_dir}...")
-    dataset = get_totalsegmentator_dataset(parsed.ts_dir, split=None if parsed.split == "all" else parsed.split)
-
-    if parsed.shuffle:
-        random.shuffle(dataset)
-
+    # Validate the complete manifest before selecting cases or loading model weights.
+    if parsed.cases_json:
+        try:
+            dataset = _load_case_manifest(parsed.cases_json)
+        except (OSError, ValueError, TypeError) as exc:
+            parser.error(f"Invalid --cases-json: {exc}")
+        print(f"Loaded {len(dataset)} ordered cases from {parsed.cases_json}; split and shuffle are bypassed")
+    else:
+        from medsam_agent3d.io import get_totalsegmentator_dataset
+        print(f"Loading TotalSegmentator dataset from {parsed.ts_dir}...")
+        dataset = get_totalsegmentator_dataset(parsed.ts_dir, split=None if parsed.split == "all" else parsed.split)
+        if parsed.shuffle:
+            random.shuffle(dataset)
     dataset = dataset[:parsed.max_samples]
     if not dataset:
         print("ERROR: No samples found. Check --ts-dir path.")
@@ -222,6 +269,9 @@ def main_batch(args=None):
     print(f"Evaluating {len(dataset)} samples")
 
     # --- Load models ---
+    from medsam_agent3d.sam import FrozenSAMMed3D
+    from .agent import QwenVLAgent
+    from .evaluation import evaluate_dataset
     mllm = QwenVLAgent(parsed.model, **_build_model_kwargs(parsed))
 
     sam = (FrozenSAMMed3D(checkpoint_path=parsed.sam_ckpt, device=parsed.sam_device)
@@ -257,7 +307,7 @@ def main(argv=None):
     if argv and argv[0] in {"single", "batch"}:
         mode, argv = argv[0], argv[1:]
     else:
-        mode = "batch" if any(arg == "--ts-dir" or arg.startswith("--ts-dir=") for arg in argv) else "single"
+        mode = "batch" if any(arg in {"--ts-dir", "--cases-json"} or arg.startswith(("--ts-dir=", "--cases-json=")) for arg in argv) else "single"
     return main_batch(argv) if mode == "batch" else main_single(argv)
 
 

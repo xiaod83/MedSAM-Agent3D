@@ -1,62 +1,85 @@
-# Start here
+﻿# MedSAM-Agent3D
 
-Run everything from this project folder using **`run.py`**. Implementation files are in `medsam_agent3d/`; you do not need to execute them individually.
+**Language-guided, iterative segmentation of 3D medical images.**
 
-In Windows PowerShell:
+This project explores whether a vision-language agent can turn an instruction such as "segment the liver" into a 3D segmentation by inspecting medical image slices, placing prompts, and refining a mask over multiple turns. It connects a Qwen vision-language model to a frozen SAM-Med3D segmentation model.
 
-```powershell
-cd C:\Users\zhouq\MedSAM-Agent3D
-.\.venv\Scripts\python.exe run.py --help
-.\.venv\Scripts\python.exe run.py doctor
-.\.venv\Scripts\python.exe run.py test --light
+The implementation includes slice rendering, validated tool calls, mapping from displayed image coordinates to volume coordinates, iterative mask refinement, and evaluation with saved trajectories. It builds on the agentic segmentation approach in MedSAM-Agent and the pretrained segmentation model from SAM-Med3D, credited below.
+
+## How it works
+
+```mermaid
+flowchart LR
+    A[3D scan + target instruction] --> B[Axial, coronal and sagittal views]
+    B --> C[Qwen vision-language agent]
+    C --> D[Validate action and map coordinates]
+    D --> E[Frozen SAM-Med3D]
+    E --> F[Predicted 3D mask]
+    F --> B
+    F --> G[Saved mask, metrics and trajectory]
 ```
 
-If your normal Python environment is activated, use `python run.py` instead.
+The agent can inspect another slice intersection, add positive or negative prompts, and stop. Ground-truth masks are optional during inference and are used for scoring rather than choosing the agent's prompts. A separate checkpoint smoke test uses a reference-derived prompt to check the SAM integration.
 
-## GPU notebook in VS Code
+## Evaluation status
 
-Open [notebooks/colab.ipynb](notebooks/colab.ipynb), select a **Colab GPU kernel** using the Google Colab extension, and follow the first markdown cell. Right-click `outputs/bundles/MedSAM-Agent3D-colab.zip` in VS Code Explorer ? **Upload to Colab**, then run the six code cells. The bundle includes all integrated Qwen3.8 native tool-call and panel grounding fixes plus one real left-femur case. No separate patch uploads are needed. No WSL, Colab CLI, or Drive mount is required.
+The existing experiment notes report **Dice 0.857 and IoU 0.750** on one left-femur case using the four-bit Qwen3.8-27B Colab pipeline. This is a single development result, not an estimate of performance across patients or organs.
 
-Rebuild the ZIP after local edits with `python run.py bundle`. Local Windows paths are not visible to the remote kernel; the notebook uses `/content/...` paths. Predictions, logs and a downloadable result ZIP appear in the extension's Colab Contents view.
+The notebook also defines a reproducible development suite: two additional test-split scans, six structures per scan, and 12 scan/target pairs. Aggregate results for that suite are not reported here. See [evaluation details and limitations](docs/EVALUATION.md).
 
+## Try the project
 
-## What to run
+Use **Python 3.11** and run commands from the repository root. Downloaded scan volumes and model weights are excluded from Git.
 
-| Task | Command after `python run.py` |
-|---|---|
-| Check dependencies, GPU and checkpoint access | `doctor` |
-| Install a CPU environment and run software checks | `setup --mode cpu` |
-| Run tests without ML dependencies | `test --light` |
-| Run the full regression suite | `test -q` |
-| Segment one scan | `single --volume scan.nii.gz --target liver` |
-| Evaluate the dataset | `batch --ts-dir data/Totalsegmentator_dataset_v201` |
-| Compare methods | `benchmark --ts-dir data/Totalsegmentator_dataset_v201 --method all` |
-| Validate the actual SAM checkpoint | `validate --sam-device cpu` |
+```bash
+git clone --recurse-submodules https://github.com/xiaod83/MedSAM-Agent3D.git
+cd MedSAM-Agent3D
+python -m venv .venv
+```
 
-Add `--mask path/to/mask.nii.gz` to single-case inference to calculate reference metrics. Run a command with `--help` for its options.
+Activate the environment with `source .venv/bin/activate` on Linux/macOS or `.\.venv\Scripts\Activate.ps1` in Windows PowerShell.
 
-## Folder map
+For an initial software check without installing ML dependencies:
+
+```bash
+python run.py --help
+python run.py test --light
+```
+
+For a CPU development environment and the full regression checks:
+
+```bash
+python run.py setup --mode cpu
+python run.py doctor
+```
+
+Full model inference needs readable SAM weights, a compatible model environment, and sufficient compute. Place SAM weights at `checkpoints/sam_med3d_turbo.pth`; see [checkpoint setup](checkpoints/README.md). The [Colab notebook guide](notebooks/README.md) describes the GPU workflow and its separate dependency profile.
+
+```bash
+python run.py single --volume scan.nii.gz --target liver
+```
+
+Add `--mask reference.nii.gz` to score a prediction. Use `python run.py single --help` for model and device options.
+
+## Explore the code
 
 | Location | Purpose |
 |---|---|
-| `run.py` | The entry point for all commands |
-| `medsam_agent3d/` | Application source, including SAM integration and NIfTI I/O |
-| `scripts/` | Setup and support tools, called through `run.py` |
-| `requirements/` | Base, development and optional quantization dependencies |
-| `tests/` | Regression and mock tests |
-| `data/Totalsegmentator_dataset_v201/` | Existing scan and segmentation dataset |
-| `checkpoints/` | Preferred location for model weights; see its README |
-| `outputs/` | Predictions, test artifacts, validation reports and old experiments |
-| `notebooks/` | Optional Colab notebook and paired script |
-| `docs/` | Development notes and reference papers |
-| `SAM-Med3D/` | Upstream SAM dependency; its existing edits are preserved |
-| `MedSAM-Agent/` | Upstream reference repository |
-| `.venv/`, `.cache/` | Local environment and cached tools |
+| [`medsam_agent3d/loop.py`](medsam_agent3d/loop.py) | Agent actions, feedback, refinement and termination |
+| [`medsam_agent3d/views.py`](medsam_agent3d/views.py) | Mapping between image panels and volume coordinates |
+| [`medsam_agent3d/sam.py`](medsam_agent3d/sam.py) | SAM-Med3D integration and volume geometry |
+| [`medsam_agent3d/agent.py`](medsam_agent3d/agent.py) | Vision-language model integration |
+| [`tests/`](tests/) | Regression tests and mock pipeline checks |
+| [`notebooks/`](notebooks/) | Colab experiment and configuration |
+| [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) | Developer setup, commands and repository layout |
 
-## Current execution status
+`run.py` is the shared command entry point. Run `python run.py --help` to see the available commands.
 
-The integrated Qwen3.8-27B four-bit Colab pipeline completed on the bundled left-femur case with Dice 0.857 and IoU 0.750. This is a single-case result. The lightweight tests run locally. Local inference still requires the scientific Python dependencies and readable model weights. This session blocks package downloads and checkpoint reads; the local MX110 also has only 2 GB of VRAM. Folder cleanup does not remove those execution limits.
+## Acknowledgments
 
-**You do not need WSL for this folder, the launcher, or local tests.** The optional terminal-to-Colab CLI route currently requires Linux/macOS; it is not the default workflow. The separate Colab notebook is under `notebooks/`.
+- **SAM-Med3D:** pretrained 3D segmentation model and upstream implementation, maintained by [uni-medical](https://github.com/uni-medical/SAM-Med3D).
+- **MedSAM-Agent:** reference approach for tool-based, iterative medical image segmentation, maintained by [CUHK-AIM-Group](https://github.com/CUHK-AIM-Group/MedSAM-Agent).
+- **Qwen:** the vision-language model used to select actions.
+- **TotalSegmentator:** the scan and organ-mask dataset used by the development workflow.
 
-Developer details and optional remote execution: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+Upstream code, weights and data retain their respective licenses and terms.

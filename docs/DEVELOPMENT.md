@@ -32,6 +32,16 @@ A separate `python run.py remote` wrapper controls an existing runtime using [Go
 
 ## Preserved material
 
-The two upstream repositories remain at the root to preserve their nested Git state and local modifications. Papers are in `docs/references/`. Existing experimental artifacts are under `outputs/experiments/`; historical paths inside them were preserved as provenance. Earlier training code remains in Git history.
+`SAM-Med3D/` is the upstream runtime dependency. The unused MedSAM-Agent reference checkout, extracted paper notes and retired launcher wrappers are preserved locally in the ignored `outputs/archive/portfolio-cleanup/` directory. They are not required to run the project. Existing experimental artifacts are under `outputs/experiments/`; historical paths inside them were preserved as provenance.
 
-Cleanup changed paths and entry points, not model weights or segmentation logic. The current checkpoint remained at the root because the filesystem denied moving it; SAM defaults prefer `checkpoints/` and fall back to the root file.
+Generated notebook ZIP downloads are kept locally in `outputs/archive/` and excluded from future source commits. Rebuild the current upload bundle with `python run.py bundle` rather than keeping timestamped ZIPs in the repository root.
+
+SAM defaults prefer `checkpoints/sam_med3d_turbo.pth` and fall back to the root file for compatibility. Model weights, downloaded scan arrays, environments and caches are excluded from Git.
+
+## Working with the nested repositories
+
+`SAM-Med3D/` has its own Git history. The main repository records an exact commit pointer, rather than storing its files as ordinary project source. Committing a new pointer does not upload the referenced commit to the nested repository's remote.
+
+Use `git submodule status` to inspect the pointers. A pointer committed to the main repository must be fetchable from the URL in `.gitmodules`, or GitHub Actions and fresh recursive clones will fail during checkout. Local modifications inside a nested repository are not included by committing its pointer.
+
+Run `git status` at the root and `git -C SAM-Med3D status` before committing. Keep project changes and upstream repository changes separate, and avoid recursive pushes unless you intend to publish the nested changes too.

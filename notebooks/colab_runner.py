@@ -6,11 +6,11 @@
 # Open **this local notebook in VS Code**, then **Select Kernel - Colab - a GPU server**. The notebook stays in your workspace; Python and the models execute on Colab. No WSL or terminal-to-Colab CLI needed.
 #
 # **One upload before Run All:**
-# 1. The ready-made source + one real CT case is `outputs/bundles/MedSAM-Agent3D-colab.zip` (~12 MB).
+# 1. The ready-made source + the evaluation scans is `outputs/bundles/MedSAM-Agent3D-colab.zip` (size printed by the bundle builder).
 # 2. After connecting the Colab kernel, right-click that ZIP in VS Code Explorer - **Upload to Colab**.
 # 3. This ZIP includes all grounding and Qwen3.8 tool-call fixes. Run the cells below in order; no separate patches or extra cells are needed. To rebuild after editing local code, run `.\.venv\Scripts\python.exe run.py bundle` in your local PowerShell terminal, then upload the new ZIP.
 #
-# The default target is the **left femur in s0000**, whose reference mask is nonempty. Upload your own scan/mask via the same Explorer action and change their remote paths below when ready.
+# The default mode is a **12-case development evaluation**: two new test-split scans, each with liver, spleen, left/right kidneys and left/right femurs. The original s0000 left femur remains the SAM smoke control. Set EVALUATION_MODE="single" for that original run. Upload your own scan/mask via the same Explorer action and change their remote paths below when ready.
 #
 # [Official extension guide](https://github.com/googlecolab/colab-vscode/wiki/User-Guide) - If the upload menu is absent, enable **Colab: Uploading** in VS Code settings. Results can be downloaded from the extension's **Colab - Contents** view.
 
@@ -28,6 +28,8 @@ BUNDLE = Path('/content/MedSAM-Agent3D-colab.zip')
 REPO_DIR = Path('/content/MedSAM-Agent3D')
 VOLUME_PATH = REPO_DIR / 'data/Totalsegmentator_dataset_v201/s0000/ct.nii.gz'
 MASK_PATH = REPO_DIR / 'data/Totalsegmentator_dataset_v201/s0000/segmentations/femur_left.nii.gz'
+EVALUATION_MODE = 'suite'  # 'suite': 12 new scan/target pairs; 'single': original control or custom scan.
+SHOW_CASE_IMAGES = 3  # All case PNGs are saved; limit inline images.
 TARGET = 'femur_left'
 MODEL_ID = 'Qwen/Qwen3.8-27B'  # Native vision-language model; requires the new Qwen3.5-family loader.
 MAX_TURNS = 5
@@ -60,7 +62,7 @@ print('Remote Python:', sys.executable)
 # %% [markdown]
 # ## 2 - Unpack the good stuff
 #
-# Only the source and one scan/reference pair are in the ZIP. The full 30 GiB dataset and model weights are not uploaded.
+# The ZIP contains source, the two evaluation scans with selected masks, and the original smoke-control scan. The full 30 GiB dataset and model weights are not uploaded.
 
 # %%
 if not BUNDLE.is_file():
@@ -83,6 +85,8 @@ for name, expected in manifest['files'].items():
         raise ValueError(f'Source integrity check failed: {name}. Rebuild and re-upload the bundle.')
 if 'normalized_0_999_panel_uv_or_zyx' not in (REPO_DIR / 'medsam_agent3d/loop.py').read_text(encoding='utf-8'):
     raise RuntimeError('This uploaded bundle predates the panel grounding fixes. Upload the newly rebuilt local ZIP, replacing the old remote ZIP, and rerun this cell.')
+if EVALUATION_MODE == 'suite' and not (REPO_DIR / 'suite_cases.json').is_file():
+    raise RuntimeError('Upload the newly rebuilt evaluation bundle; this ZIP has only the original control scan.')
 if 'Qwen3.8' in MODEL_ID and not (REPO_DIR / 'requirements/qwen38.txt').is_file():
     raise RuntimeError('Uploaded bundle lacks Qwen3.8 support. Replace the remote ZIP with the newly rebuilt local bundle.')
 print('Bundle SHA256:', hashlib.sha256(BUNDLE.read_bytes()).hexdigest())
@@ -183,7 +187,7 @@ if not VOLUME_PATH.is_file():
     raise FileNotFoundError(f'Upload your scan through Explorer or use the bundled sample: {VOLUME_PATH}')
 if MASK_PATH is not None and not MASK_PATH.is_file():
     raise FileNotFoundError(f'Mask not found: {MASK_PATH}. Set MASK_PATH=None for inference without ground truth.')
-config = dict(target=TARGET, model=MODEL_ID, volume=str(VOLUME_PATH),
+config = dict(evaluation_mode=EVALUATION_MODE, target=TARGET, model=MODEL_ID, volume=str(VOLUME_PATH),
               mask=str(MASK_PATH) if MASK_PATH else None, max_turns=MAX_TURNS,
               seed=SEED, load_in_4bit=LOAD_IN_4BIT, gpu=GPU_NAME.strip(), vram_gib=VRAM_GIB)
 (RUN_DIR / 'notebook_config.json').write_text(json.dumps(config, indent=2), encoding='utf-8')
@@ -226,18 +230,37 @@ else:
 # %%
 if not SAM_SMOKE_READY:
     raise RuntimeError('SAM smoke did not pass execution and target-overlap checks. Inspect sam_smoke.log and validation_report.json before downloading/running Qwen. A larger Qwen cannot repair this SAM failure.')
-command = [sys.executable, 'run.py', 'single', '--volume', str(VOLUME_PATH),
-           '--target', TARGET, '--model', MODEL_ID, '--sam-ckpt', str(SAM_CKPT),
-           '--device', 'cuda', '--sam-device', 'cuda', '--max-turns', str(MAX_TURNS),
-           '--temperature', '0', '--seed', str(SEED), '--output-dir', str(RUN_DIR)]
-if MASK_PATH is not None:
-    command += ['--mask', str(MASK_PATH)]
+common = ['--model', MODEL_ID, '--sam-ckpt', str(SAM_CKPT),
+          '--device', 'cuda', '--sam-device', 'cuda', '--max-turns', str(MAX_TURNS),
+          '--temperature', '0', '--seed', str(SEED), '--output-dir', str(RUN_DIR)]
 if LOAD_IN_4BIT:
-    command.append('--load-in-4bit')
-run_logged(command, 'agent')
+    common.append('--load-in-4bit')
+if EVALUATION_MODE == 'suite':
+    cases_path = REPO_DIR / 'suite_cases.json'
+    cases = json.loads(cases_path.read_text(encoding='utf-8'))
+    shutil.copy2(cases_path, RUN_DIR / 'suite_cases.json')
+    shutil.copy2(REPO_DIR / 'suite_metadata.json', RUN_DIR / 'suite_metadata.json')
+    print('Evaluating', len(cases), 'scan/target pairs; models load once. All cases count.')
+    command = [sys.executable, 'run.py', 'batch', '--cases-json', str(cases_path),
+               '--max-samples', str(len(cases)), '--no-shuffle'] + common
+elif EVALUATION_MODE == 'single':
+    command = [sys.executable, 'run.py', 'single', '--volume', str(VOLUME_PATH),
+               '--target', TARGET] + common
+    if MASK_PATH is not None:
+        command += ['--mask', str(MASK_PATH)]
+else:
+    raise ValueError("EVALUATION_MODE must be 'suite' or 'single'")
+try:
+    run_logged(command, 'agent')
+except subprocess.CalledProcessError:
+    # Batch evaluates every case before reporting quality/operational failures.
+    # Preserve and display those results; initialization failures still raise.
+    if EVALUATION_MODE != 'suite' or not (RUN_DIR / 'evaluation_summary.json').is_file():
+        raise
+    print('Batch contains failed cases. Review the complete table below; failures are included.')
 
 # %% [markdown]
-# ## 6 - Show me the mask
+# ## 6 - Review every result
 #
 # The summary reports execution success separately from IoU/Dice. A completed loop is not a guarantee of accurate segmentation. If the previous cell failed, you can still run this cell to inspect saved errors and logs.
 
@@ -245,40 +268,72 @@ run_logged(command, 'agent')
 from IPython.display import display, Markdown
 from PIL import Image
 
-trajectory_path = RUN_DIR / 'trajectory.json'
-if trajectory_path.is_file():
-    result = json.loads(trajectory_path.read_text(encoding='utf-8'))
-    print('Execution completed:', result['success'], '| termination:', result.get('termination_reason'))
-    target_overlap = result.get('target_overlap')
-    if target_overlap is None and result.get('final_iou') is not None:
-        target_overlap = result['final_iou'] > 0
-    quality_status = result.get('quality_status')
-    if quality_status is None:
-        quality_status = 'unscored' if target_overlap is None else ('overlap_unvalidated' if target_overlap else 'no_overlap')
-    print('quality_status:', quality_status, '| target_overlap:', target_overlap)
-    if quality_status == 'no_overlap' or target_overlap is False:
-        display(Markdown('**SEGMENTATION QUALITY FAILURE: ZERO overlap with the reference target. The loop may have executed successfully, but this prediction did not segment the requested structure. Inspect the smoke test, prompts, and overlays.**'))
-    elif target_overlap is True:
-        print('Some target overlap is present; this does not establish accurate segmentation.')
-    else:
-        print('Quality is unscored. Review the mask; execution completion does not establish accuracy.')
-    if result.get('error'):
-        print('Error:', result['error'])
-    print('Final IoU:', result.get('final_iou'), '| Dice:', result.get('final_dice'))
-    rows = ['| Attempt | Action | IoU | Dice | Mask voxels |', '|---:|---|---:|---:|---:|']
-    for turn in result.get('turns', []):
-        iou = '-' if turn.get('iou') is None else f"{turn['iou']:.4f}"
-        dice = '-' if turn.get('dice') is None else f"{turn['dice']:.4f}"
-        rows.append(f"| {turn['turn']} | {turn['action'].get('name', '?')} | {iou} | {dice} | {turn['mask_voxels']} |")
+summary_path = RUN_DIR / 'evaluation_summary.json'
+if EVALUATION_MODE == 'suite' and summary_path.is_file():
+    results = json.loads(summary_path.read_text(encoding='utf-8'))
+    rows = ['| Scan | Target | Executed | Dice | IoU | Error |', '|---|---|---|---:|---:|---|']
+    csv_rows = []
+    for result in results:
+        dice, iou = result.get('final_dice'), result.get('final_iou')
+        completed = bool(result.get('success'))
+        csv_rows.append(dict(scan=result['volume_id'], target=result['target_name'], executed=completed,
+                             dice=dice, iou=iou, error=result.get('error', '')))
+        dice_text = '-' if dice is None else f'{dice:.4f}'
+        iou_text = '-' if iou is None else f'{iou:.4f}'
+        error = result.get('error', '').replace('|', '/').replace('\n', ' ')
+        rows.append(f"| {result['volume_id']} | {result['target_name']} | {completed} | {dice_text} | {iou_text} | {error} |")
     display(Markdown('\n'.join(rows)))
+    if results:
+        def score(result, metric):
+            return float(result.get(metric) or 0) if result.get('success') else 0.0
+        print('All-case mean Dice (failures=0):', sum(score(r, 'final_dice') for r in results) / len(results))
+        print('All-case mean IoU (failures=0):', sum(score(r, 'final_iou') for r in results) / len(results))
+        print('Execution failures:', sum(not r.get('success') for r in results), '/', len(results))
+        for target in sorted({r['target_name'] for r in results}):
+            group = [r for r in results if r['target_name'] == target]
+            print(target, '| mean Dice:', sum(score(r, 'final_dice') for r in group) / len(group))
+        with (RUN_DIR / 'case_scores.csv').open('w', newline='', encoding='utf-8') as stream:
+            writer = csv.DictWriter(stream, fieldnames=list(csv_rows[0]))
+            writer.writeheader(); writer.writerows(csv_rows)
+        for result in results[:SHOW_CASE_IMAGES]:
+            image_path = RUN_DIR / result['volume_id'] / result['target_name'] / 'final.png'
+            if image_path.is_file():
+                print(result['volume_id'], result['target_name'])
+                display(Image.open(image_path))
+    print('Per-case masks, PNGs and trajectories:', RUN_DIR)
 else:
-    print('No trajectory yet; inspect the printed error and agent.log in the result ZIP.')
-final_image = RUN_DIR / 'final.png'
-if final_image.is_file():
-    display(Image.open(final_image))
+    trajectory_path = RUN_DIR / 'trajectory.json'
+    if trajectory_path.is_file():
+        result = json.loads(trajectory_path.read_text(encoding='utf-8'))
+        print('Execution completed:', result['success'], '| termination:', result.get('termination_reason'))
+        target_overlap = result.get('target_overlap')
+        if target_overlap is None and result.get('final_iou') is not None:
+            target_overlap = result['final_iou'] > 0
+        quality_status = result.get('quality_status')
+        if quality_status is None:
+            quality_status = 'unscored' if target_overlap is None else ('overlap_unvalidated' if target_overlap else 'no_overlap')
+        print('quality_status:', quality_status, '| target_overlap:', target_overlap)
+        if quality_status == 'no_overlap' or target_overlap is False:
+            display(Markdown('**SEGMENTATION QUALITY FAILURE: ZERO overlap with the reference target. The loop may have executed successfully, but this prediction did not segment the requested structure. Inspect the smoke test, prompts, and overlays.**'))
+        elif target_overlap is True:
+            print('Some target overlap is present; this does not establish accurate segmentation.')
+        else:
+            print('Quality is unscored. Review the mask; execution completion does not establish accuracy.')
+        if result.get('error'):
+            print('Error:', result['error'])
+        print('Final IoU:', result.get('final_iou'), '| Dice:', result.get('final_dice'))
+        rows = ['| Attempt | Action | IoU | Dice | Mask voxels |', '|---:|---|---:|---:|---:|']
+        for turn in result.get('turns', []):
+            iou = '-' if turn.get('iou') is None else f"{turn['iou']:.4f}"
+            dice = '-' if turn.get('dice') is None else f"{turn['dice']:.4f}"
+            rows.append(f"| {turn['turn']} | {turn['action'].get('name', '?')} | {iou} | {dice} | {turn['mask_voxels']} |")
+        display(Markdown('\n'.join(rows)))
+    else:
+        print('No trajectory yet; inspect the printed error and agent.log in the result ZIP.')
+    final_image = RUN_DIR / 'final.png'
+    if final_image.is_file():
+        display(Image.open(final_image))
 RESULT_ZIP = archive_results()
-prediction = RUN_DIR / 'prediction.nii.gz'
-print('Prediction:', prediction if prediction.is_file() else 'Not generated; inspect agent.log')
 
 # %% [markdown]
 # ### Take the results home

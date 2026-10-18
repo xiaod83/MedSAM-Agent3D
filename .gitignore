@@ -22,6 +22,7 @@ dist/
 *.npz
 
 # Generated and preserved experiment artifacts
+/notebook_*.zip
 outputs/*
 !outputs/README.md
 
