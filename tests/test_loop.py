@@ -57,3 +57,15 @@ def test_navigation_changes_slices_without_sam_prediction(tmp_path):
     assert result.success
     assert result.turns[0].next_center == (0, 9, 0)
     assert result.turns[0].mask_voxels == 0
+
+
+def test_panel_point_resolves_on_current_slice_and_reports_no_overlap(tmp_path):
+    action = {'name': 'add_view_point', 'arguments': {'view': 'axial', 'point_2d': [0, 999], 'point_type': 'positive'}}
+    mask = np.zeros((8, 10, 12), dtype=np.uint8)
+    mask[1, 1, 1] = 1
+    result = run(tmp_path, [action, STOP], mask)
+    assert result.success
+    assert result.turns[0].action['resolved_point_zyx'] == [4, 9, 0]
+    assert result.predicted_mask[4, 9, 0] == 1
+    assert result.target_overlap is False
+    assert result.quality_status == 'no_overlap'

@@ -6,7 +6,7 @@ References:
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Literal, Optional, Tuple
 
 
 @dataclass
@@ -68,6 +68,9 @@ class AgentResult:
     predicted_mask: Optional[Any] = field(default=None, repr=False)
     mask_path: Optional[str] = None
     metrics_available: bool = False
+    # success describes execution; overlap only tests whether any GT voxel was recovered.
+    target_overlap: Optional[bool] = None
+    quality_status: Literal['unscored', 'no_overlap', 'overlap_unvalidated'] = 'unscored'
     termination_reason: str = ""
     config: Dict[str, Any] = field(default_factory=dict)
 

@@ -150,6 +150,10 @@ def main_single(args=None):
     if not result.success:
         print(f'Inference failed: {result.error or result.termination_reason}', file=sys.stderr)
         raise SystemExit(1)
+    if result.quality_status == "no_overlap" or result.target_overlap is False:
+        print("Segmentation quality failure: prediction has zero overlap with the target ground truth "
+              "(quality_status=no_overlap). Execution completed; inspect trajectory.json.", file=sys.stderr)
+        raise SystemExit(2)
     return result
 
 
@@ -236,6 +240,10 @@ def main_batch(args=None):
     if any(not result.success for result in results):
         print('Batch finished with failed cases; see evaluation_summary.json', file=sys.stderr)
         raise SystemExit(1)
+    if any(result.quality_status == "no_overlap" or result.target_overlap is False for result in results):
+        print("Batch segmentation quality failure: at least one prediction has zero target overlap "
+              "(quality_status=no_overlap); see evaluation_summary.json", file=sys.stderr)
+        raise SystemExit(2)
     return results
 
 

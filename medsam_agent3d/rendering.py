@@ -1,7 +1,7 @@
 """
 Tri-view rendering: 3D medical volume -> 2D stitched image.
 
-Extracts three orthogonal slices (axial, coronal, sagittal) centered on a
+Extracts three orthogonal slices (axial, coronal, sagittal) through a
 focus point, overlays the current segmentation mask as semi-transparent
 green, and stitches them side-by-side for MLLM consumption.
 
@@ -13,6 +13,8 @@ from typing import Optional, Tuple
 
 import numpy as np
 from PIL import Image, ImageDraw
+
+from .views import view_point_to_voxel
 
 
 def normalize_slice(slice_2d: np.ndarray) -> np.ndarray:
@@ -116,6 +118,7 @@ def render_triview(
     center: Tuple[int, int, int],
     spacing: Tuple[float, float, float] = (1.0, 1.0, 1.0),
     mask: Optional[np.ndarray] = None,
+    affine=None,
 ) -> Image.Image:
     """Render tri-view (Axial | Coronal | Sagittal) as a single PIL Image.
 
@@ -126,6 +129,7 @@ def render_triview(
         center: (z, y, x) focus point for slice extraction.
         spacing: (dz, dy, dx) voxel spacing.
         mask: Optional (Z, Y, X) binary mask to overlay in green.
+        affine: Optional XYZ voxel-to-world affine, used for anatomical labels.
 
     Returns:
         PIL Image of the tri-view stitched side-by-side.
@@ -166,32 +170,101 @@ def render_triview(
     cor_norm = overlay_mask(cor_norm, m_cor_r)
     sag_norm = overlay_mask(sag_norm, m_sag_r)
 
-    # Crosshairs mark slice intersection, independent of panel center/padding.
+    # Each image owns its own normalized (u,v) grid. The focus marker stays
+    # outside tissue: an interior crosshair strongly biased real model clicks
+    # toward unrelated tissue at the slice intersection.
     z, y, x = center
     dz, dy, dx = volume.shape
-    panels = []
+    directions = _anatomical_axis_directions(affine)
     definitions = [
-        (ax_norm, (x / max(dx - 1, 1), y / max(dy - 1, 1)), f"Axial Z={z} | X right, Y down"),
-        (cor_norm, (x / max(dx - 1, 1), z / max(dz - 1, 1)), f"Coronal Y={y} | X right, Z down"),
-        (sag_norm, (y / max(dy - 1, 1), z / max(dz - 1, 1)), f"Sagittal X={x} | Y right, Z down"),
+        (ax_norm, "AXIAL", f"z={z}/{dz - 1}", "X", "Y", x / max(dx - 1, 1), y / max(dy - 1, 1)),
+        (cor_norm, "CORONAL", f"y={y}/{dy - 1}", "X", "Z", x / max(dx - 1, 1), z / max(dz - 1, 1)),
+        (sag_norm, "SAGITTAL", f"x={x}/{dx - 1}", "Y", "Z", y / max(dy - 1, 1), z / max(dz - 1, 1)),
     ]
-    height = max(ax_norm.shape[0], cor_norm.shape[0], sag_norm.shape[0])
-    for pixels, (fx, fy), label in definitions:
-        panel = Image.fromarray(pixels)
-        draw = ImageDraw.Draw(panel)
-        cx, cy = round(fx * (panel.width - 1)), round(fy * (panel.height - 1))
-        draw.line((cx, 0, cx, panel.height - 1), fill=(0, 220, 255))
-        draw.line((0, cy, panel.width - 1, cy), fill=(0, 220, 255))
-        framed = Image.new("RGB", (max(panel.width, 250), height + 42), (16, 16, 16))
-        framed.paste(panel, (0, 32))
-        frame_draw = ImageDraw.Draw(framed)
-        frame_draw.text((3, 3), label, fill="white")
-        frame_draw.text((3, 16), "Image edges: 0 -> 999 (exclude padding)", fill="white")
-        frame_draw.rectangle((0, 32, panel.width - 1, 32 + panel.height - 1), outline=(180, 180, 180))
-        panels.append(framed)
-    result = Image.new("RGB", (sum(p.width for p in panels) + 12, height + 42))
+    panels = []
+    for pixels, name, fixed, u_axis, v_axis, focus_u, focus_v in definitions:
+        panels.append(_coordinate_panel(pixels, name, fixed, u_axis, v_axis,
+                                        focus_u, focus_v, directions))
+    gap, legend_height = 8, 30
+    result = Image.new("RGB", (sum(panel.width for panel in panels) + gap * 2,
+                              max(panel.height for panel in panels) + legend_height), (16, 16, 16))
+    draw = ImageDraw.Draw(result)
+    draw.text((4, 1), "Click image grid (u right, v down), each 0-999. Green = prediction; cyan margin ticks = slice focus only, not target.", fill=(235, 235, 235))
+    if directions:
+        draw.text((4, 14), "Anatomical labels: L/R = patient's Left/Right; P/A = Posterior/Anterior; I/S = Inferior/Superior.", fill=(200, 200, 200))
+    else:
+        draw.text((4, 14), "Anatomical directions unavailable. Grid coordinates refer to voxel axes; exclude labels and padding.", fill=(200, 200, 200))
     left = 0
     for panel in panels:
-        result.paste(panel, (left, 0))
-        left += panel.width + 6
+        result.paste(panel, (left, legend_height))
+        left += panel.width + gap
     return result
+
+
+def _anatomical_axis_directions(affine):
+    """Derive increasing voxel-axis directions from a supplied RAS affine.
+
+    Unknown or strongly oblique axes receive no anatomical claim. World +X is
+    patient's right, +Y anterior, +Z superior; display axes follow array indices.
+    """
+    if affine is None:
+        return {}
+    matrix = np.asarray(affine, dtype=float)
+    if matrix.shape != (4, 4) or not np.isfinite(matrix).all():
+        raise ValueError("affine must be a finite 4x4 XYZ voxel-to-world matrix")
+    positive, negative = ("R", "A", "S"), ("L", "P", "I")
+    result = {}
+    for column, axis in enumerate(("X", "Y", "Z")):
+        vector = matrix[:3, column]
+        norm = np.linalg.norm(vector)
+        if norm == 0:
+            continue
+        world_axis = int(np.argmax(np.abs(vector)))
+        if abs(vector[world_axis]) / norm < .8:
+            continue
+        increasing = positive[world_axis] if vector[world_axis] > 0 else negative[world_axis]
+        decreasing = negative[world_axis] if vector[world_axis] > 0 else positive[world_axis]
+        result[axis] = f"{decreasing}->{increasing}"
+    return result
+
+
+def _coordinate_panel(pixels, name, fixed, u_axis, v_axis, focus_u, focus_v, directions):
+    """Frame a panel with ticks, light grid, and focus ticks outside anatomy."""
+    image = Image.fromarray(pixels)
+    # Use faint dashed lines, preserving the image features beneath the grid.
+    grid = Image.new("RGBA", image.size)
+    grid_draw = ImageDraw.Draw(grid)
+    for value in (250, 500, 750):
+        gx, gy = round(value / 999 * (image.width - 1)), round(value / 999 * (image.height - 1))
+        for position in range(0, image.height, 12):
+            grid_draw.line((gx, position, gx, min(position + 3, image.height - 1)), fill=(215, 215, 215, 65))
+        for position in range(0, image.width, 12):
+            grid_draw.line((position, gy, min(position + 3, image.width - 1), gy), fill=(215, 215, 215, 65))
+    image = Image.alpha_composite(image.convert("RGBA"), grid).convert("RGB")
+    left, top, right, bottom = 29, 52, 5, 9
+    panel = Image.new("RGB", (left + image.width + right, top + image.height + bottom), (16, 16, 16))
+    panel.paste(image, (left, top))
+    draw = ImageDraw.Draw(panel)
+    draw.text((left, 1), f"{name} | {fixed}", fill="white")
+    u_direction = f" ({directions[u_axis]})" if u_axis in directions else ""
+    v_direction = f" ({directions[v_axis]})" if v_axis in directions else ""
+    draw.text((left, 14), f"u={u_axis}{u_direction}; v={v_axis}{v_direction}", fill=(220, 220, 220))
+    for value in (0, 250, 500, 750, 999):
+        cx = left + round(value / 999 * (image.width - 1))
+        cy = top + round(value / 999 * (image.height - 1))
+        text = str(value)
+        box = draw.textbbox((0, 0), text)
+        width = box[2] - box[0]
+        tx = min(max(left, cx - width // 2), left + image.width - width)
+        draw.text((tx, top - 18), text, fill=(235, 235, 235))
+        draw.line((cx, top - 5, cx, top - 1), fill=(160, 160, 160))
+        draw.text((left - 5 - width, cy - 5), text, fill=(235, 235, 235))
+        draw.line((left - 3, cy, left - 1, cy), fill=(160, 160, 160))
+    draw.rectangle((left, top, left + image.width - 1, top + image.height - 1), outline=(130, 130, 130))
+    cx = left + round(focus_u * (image.width - 1))
+    cy = top + round(focus_v * (image.height - 1))
+    # Short cyan markers outside the image indicate focus without suggesting a
+    # tissue target. The exact ZYX focus is provided in the model request.
+    draw.line((cx - 3, top + image.height + 3, cx + 3, top + image.height + 3), fill=(0, 220, 255), width=2)
+    draw.line((left + image.width + 2, cy - 3, left + image.width + 2, cy + 3), fill=(0, 220, 255), width=2)
+    return panel

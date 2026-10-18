@@ -2,7 +2,7 @@
 torch>=2.2.0
 torchvision>=0.17.0
 # Qwen3-VL support starts in Transformers 4.57.
-transformers>=4.57.0,<5
+transformers>=4.57.0,<6
 accelerate>=1.0.0
 qwen-vl-utils>=0.0.14
 nibabel>=5.0.0

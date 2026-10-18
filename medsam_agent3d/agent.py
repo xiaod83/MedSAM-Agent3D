@@ -1,5 +1,5 @@
 """
-MLLM agent wrapper for Qwen3-VL.
+Vision-language agent wrapper for Qwen3-VL and native-vision Qwen3.5/3.6/3.8.
 
 Provides a clean interface for the vision-language model used as the
 "reasoning brain" in the agentic loop. The agent sees tri-view images
@@ -61,7 +61,7 @@ class MLLMAgent(ABC):
 # ---------------------------------------------------------------------------
 
 class QwenVLAgent(MLLMAgent):
-    """Wraps Qwen3-VL for tool-call generation (no fine-tuning needed).
+    """Wraps Qwen3-VL and native-vision Qwen3.5/3.6/3.8 for tool calls.
 
     Handles:
     - Chat template application with vision inputs
@@ -83,10 +83,38 @@ class QwenVLAgent(MLLMAgent):
             **load_kwargs: Additional kwargs for from_pretrained
                 (e.g., quantization_config, torch_dtype).
         """
-        from transformers import AutoProcessor, Qwen3VLForConditionalGeneration
+        import transformers
+        from transformers import AutoConfig, AutoProcessor
+
+        config_kwargs = {key: load_kwargs[key] for key in
+                         ('revision', 'token', 'cache_dir', 'local_files_only', 'subfolder')
+                         if key in load_kwargs}
+        try:
+            config = AutoConfig.from_pretrained(model_id, **config_kwargs)
+        except (KeyError, ValueError) as exc:
+            raise ValueError(
+                f"Cannot load model configuration for {model_id}. Native-vision "
+                "Qwen3.5/3.6/3.8 requires a recent Transformers 5.x release "
+                "supporting qwen3_5; upgrade the remote runtime dependencies."
+            ) from exc
+        self._direct_vision_processor = config.model_type in {'qwen3_5', 'qwen3_5_moe'}
+        class_names = {
+            'qwen3_vl': 'Qwen3VLForConditionalGeneration',
+            'qwen3_vl_moe': 'Qwen3VLMoeForConditionalGeneration',
+            'qwen3_5': 'Qwen3_5ForConditionalGeneration',
+            'qwen3_5_moe': 'Qwen3_5MoeForConditionalGeneration',
+        }
+        class_name = class_names.get(config.model_type)
+        if class_name is None:
+            raise ValueError(f"Unsupported vision model architecture: {config.model_type}. "
+                             "Choose a Qwen3-VL or native-vision Qwen3.5/3.6/3.8 checkpoint.")
+        model_class = getattr(transformers, class_name, None)
+        if model_class is None:
+            raise ImportError(f"Transformers {transformers.__version__} lacks {class_name}; "
+                              "install a recent Transformers 5.x release for this checkpoint.")
 
         self.model_id = model_id
-        print(f"Loading Qwen3-VL from {model_id}...")
+        print(f"Loading {model_id} ({config.model_type})...")
         defaults = dict(
             torch_dtype=(torch.float32 if device_map == "cpu" or not torch.cuda.is_available()
                          else torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16),
@@ -95,14 +123,15 @@ class QwenVLAgent(MLLMAgent):
         )
         defaults.update(load_kwargs)
 
-        self.model = Qwen3VLForConditionalGeneration.from_pretrained(
-            model_id, **defaults
-        )
+        if self._direct_vision_processor:
+            dtype = defaults.pop('torch_dtype')
+            defaults.setdefault('dtype', dtype)
+        self.model = model_class.from_pretrained(model_id, config=config, **defaults)
         self.processor = AutoProcessor.from_pretrained(
-            model_id, trust_remote_code=True
+            model_id, trust_remote_code=True, **config_kwargs
         )
         self.model.eval()
-        print(f"Qwen3-VL loaded on {self.model.device}")
+        print(f"{model_id} loaded on {self.model.device}")
 
     def generate_action(
         self,
@@ -126,8 +155,6 @@ class QwenVLAgent(MLLMAgent):
         Returns:
             Parsed action dict with name, arguments, _raw_output.
         """
-        from qwen_vl_utils import process_vision_info
-
         # --- Build messages ---
         messages: List[Dict[str, Any]] = [
             {"role": "system", "content": system_prompt}
@@ -144,24 +171,29 @@ class QwenVLAgent(MLLMAgent):
             ],
         })
 
-        # --- Apply chat template ---
-        text = self.processor.apply_chat_template(
-            messages, tokenize=False, add_generation_prompt=True
-        )
-
-        # --- Process vision inputs (proper Qwen3-VL image handling) ---
-        image_inputs, video_inputs = process_vision_info(
-            messages, image_patch_size=16
-        )
-
-        # --- Tokenize ---
-        inputs = self.processor(
-            text=[text],
-            images=image_inputs,
-            videos=video_inputs,
-            return_tensors="pt",
-            padding=True,
-        ).to(self.model.device)
+        if self._direct_vision_processor:
+            from .prompting import TOOL_DEFINITIONS
+            # Let the checkpoint's own template supply its native tool grammar.
+            # Remove the legacy JSON-only footer to avoid conflicting instructions.
+            messages[0]['content'] = system_prompt.split('Return exactly one JSON tool call', 1)[0]
+            # Native-vision Qwen3.5/3.6/3.8 processors handle the PIL image and
+            # multimodal tokenization together. Disable default thinking so a
+            # bounded tool-call budget is not consumed by unfinished reasoning.
+            inputs = self.processor.apply_chat_template(
+                messages, tokenize=True, add_generation_prompt=True,
+                return_dict=True, return_tensors="pt", enable_thinking=False,
+                tools=TOOL_DEFINITIONS,
+            ).to(self.model.device)
+        else:
+            from qwen_vl_utils import process_vision_info
+            text = self.processor.apply_chat_template(
+                messages, tokenize=False, add_generation_prompt=True,
+            )
+            image_inputs, video_inputs = process_vision_info(messages, image_patch_size=16)
+            inputs = self.processor(
+                text=[text], images=image_inputs, videos=video_inputs,
+                return_tensors="pt", padding=True,
+            ).to(self.model.device)
 
         # --- Generate ---
         do_sample = temperature > 0.0

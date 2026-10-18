@@ -178,15 +178,27 @@ def evaluate_dataset(mllm_agent: MLLMAgent, sam_model, dataset_entries: List[Dic
 
 
 def _print_summary(results):
-    successful = [r for r in results if r.success]
+    completed = [r for r in results if r.success]
     scored = [r for r in results if r.final_iou is not None and r.final_dice is not None]
-    print(f"Cases: {len(results)}, successful: {len(successful)}, failed: {len(results)-len(successful)}, scored: {len(scored)}")
+    no_overlap = [r for r in results if r.target_overlap is False or r.quality_status == "no_overlap"]
+    overlap = [r for r in results if r.target_overlap is True]
+    print(f"Cases: {len(results)}, execution completed: {len(completed)}, "
+          f"execution failed: {len(results)-len(completed)}, scored: {len(scored)}")
+    print(f"Quality: no target overlap: {len(no_overlap)}, "
+          f"overlap present but unvalidated: {len(overlap)}, "
+          f"unscored: {len(results)-len(no_overlap)-len(overlap)}")
+    print("Execution completion is not segmentation validation; any target overlap alone does not establish accuracy.")
+    if no_overlap:
+        print("SEGMENTATION QUALITY FAILURE: predictions have zero overlap with the target ground truth:")
+        for result in no_overlap:
+            print(f"  {result.volume_id}/{result.target_name}: quality_status=no_overlap, "
+                  f"IoU={result.final_iou}, Dice={result.final_dice}")
     if scored:
-        # Failed cases contribute zero to the primary score, preserving the denominator.
+        # Execution failures contribute zero to the primary score, preserving its denominator.
         ious = [r.final_iou if r.success else 0. for r in scored]
         dices = [r.final_dice if r.success else 0. for r in scored]
-        print(f"IoU (failure=0): {np.mean(ious):.4f}; Dice (failure=0): {np.mean(dices):.4f}")
-
+        print(f"IoU (execution failure=0): {np.mean(ious):.4f}; "
+              f"Dice (execution failure=0): {np.mean(dices):.4f}")
 
 def _save_results_json(results, output_dir):
     os.makedirs(output_dir, exist_ok=True)

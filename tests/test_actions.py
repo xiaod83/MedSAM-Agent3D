@@ -43,6 +43,42 @@ class ActionValidationTests(unittest.TestCase):
         self.assertEqual(parsing.denormalize_point((0, 500, 999), (9, 11, 13)), (0, 5, 12))
         self.assertEqual(parsing.validate_action({'name': 'navigate', 'arguments': {'point_3d': [1, 2, 3]}})['name'], 'navigate')
 
+    def test_panel_points_validate_view_and_coordinates(self):
+        good = {'name': 'add_view_point', 'arguments': {'view': 'axial', 'point_2d': [180, 350], 'point_type': 'positive'}}
+        self.assertEqual(parsing.validate_action(good)['name'], 'add_view_point')
+        for changes in ({'view': []}, {'view': 'unknown'}, {'point_2d': [1, 2, 3]}, {'point_2d': [10**400, 0]}, {'point_type': 'other'}):
+            bad = {'name': good['name'], 'arguments': dict(good['arguments'], **changes)}
+            self.assertEqual(parsing.validate_action(bad)['name'], 'invalid_action')
+
+    def test_prompt_has_no_center_click_example(self):
+        prompt = load('prompting').build_system_prompt((179, 192, 294), ['femur_left'])
+        self.assertIn('add_view_point', prompt)
+        self.assertIn('femur_left', prompt)
+        self.assertNotIn('[500, 500, 500]', prompt)
+        self.assertIn('not a suggested target', prompt)
+
+    def test_native_qwen_xml_and_reported_malformed_enums(self):
+        for body in (
+            '<function=add_view_point><parameter=view>axial</parameter><parameter=point_2d>[100,350]</parameter><parameter=point_type>positive</parameter></function>',
+            '<function=add_view_point><function=add_view_point><parameter=view="axial</parameter><parameter=point_2d>\n[100, 350]</parameter><parameter=point_type="positive</parameter></function>',
+        ):
+            text = '<tool_call>' + body + '</tool_call>'
+            action = parsing.parse_action(text)
+            self.assertEqual(action['name'], 'add_view_point', action)
+            self.assertEqual(action['arguments'], {'view': 'axial', 'point_2d': [100,350], 'point_type': 'positive'})
+            self.assertEqual(action['_raw_output'], text)
+
+    def test_native_xml_rejects_ambiguous_or_invalid_calls(self):
+        for body in (
+            '<function=stop_action></function><function=stop_action></function>',
+            '<function=add_view_point><parameter=view>axial</parameter><parameter=view>coronal</parameter></function>',
+            '<function=add_view_point><parameter=point_2d>[1,1000]</parameter></function>',
+            '<function=stop_action>',
+            '<function=stop_action><parameter=x>__import__("os")</parameter></function>',
+        ):
+            self.assertEqual(parsing.parse_action('<tool_call>'+body+'</tool_call>')['name'], 'invalid_action')
+        self.assertEqual(parsing.parse_action('<tool_call><function=stop_action></function></tool_call>')['name'], 'stop_action')
+
     def test_click_chronology_survives_round_trip(self):
         tracker = clicker.Clicker3D()
         tracker.add_negative((1, 2, 3), turn=0)

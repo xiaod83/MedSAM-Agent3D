@@ -1,0 +1,4 @@
+# Qwen3.8 uses the Qwen3.5 vision-language architecture.
+-r quantized.txt
+# Version used by the successful A100 run.
+transformers==5.20.1

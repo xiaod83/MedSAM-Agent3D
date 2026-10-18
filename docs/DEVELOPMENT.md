@@ -1,4 +1,4 @@
-﻿# Development guide
+# Development guide
 
 Use `run.py` at the repository root for execution. `scripts/` contains support implementations, not competing main workflows.
 
@@ -26,7 +26,7 @@ python run.py test -q
 
 ## Optional Colab routes
 
-`notebooks/colab.ipynb` runs inside a Colab GPU environment. Build its updated source archive with `python run.py bundle`; the archive appears in `outputs/bundles/`. The paired notebook source is `notebooks/colab_runner.py`. The notebook preserves an unrecognized Drive checkpoint and downloads verified official weights rather than stopping on the Drive file.
+`notebooks/colab.ipynb` opens locally in VS Code and executes on a Colab GPU kernel using Google's extension. Upload the ZIP with the Explorer context menu; no browser-only `files.upload()` or mandatory Drive mount is used. Build its updated source archive with `python run.py bundle`; the archive appears in `outputs/bundles/`. The paired notebook source is `notebooks/colab_runner.py`. The notebook preserves an unrecognized Drive checkpoint and downloads verified official weights rather than stopping on the Drive file.
 
 A separate `python run.py remote` wrapper controls an existing runtime using [Google's Colab CLI](https://github.com/googlecolab/google-colab-cli). That CLI currently supports Linux/macOS, so this optional route cannot run natively in Windows PowerShell. It is not needed for normal project navigation or local tests. Authentication and live remote execution remain unverified from this restricted environment.
 

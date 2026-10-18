@@ -17,6 +17,15 @@ from typing import List, Optional, Tuple
 # Tool function definitions (JSON schema for Qwen3-VL tool calling)
 TOOL_DEFINITIONS = [
     {"type": "function", "function": {
+        "name": "add_view_point",
+        "description": "Click visible anatomy in one displayed panel; fixed slice coordinate is supplied automatically.",
+        "parameters": {"type": "object", "properties": {
+            "view": {"type": "string", "enum": ["axial", "coronal", "sagittal"]},
+            "point_2d": {"type": "array", "items": {"type": "integer", "minimum": 0, "maximum": 999}, "minItems": 2, "maxItems": 2},
+            "point_type": {"type": "string", "enum": ["positive", "negative"]}},
+            "required": ["view", "point_2d", "point_type"]}}},
+
+    {"type": "function", "function": {
         "name": "navigate", "description": "Inspect slices through a different 3D intersection without changing segmentation.",
         "parameters": {"type": "object", "properties": {"point_3d": {
             "type": "array", "items": {"type": "integer", "minimum": 0, "maximum": 999},
@@ -105,79 +114,35 @@ def build_tools_xml() -> str:
     return "\n".join([json.dumps(t) for t in TOOL_DEFINITIONS])
 
 
-def _format_examples() -> str:
-    """Format the few-shot examples that teach the MLLM the expected format."""
-    return """
-Examples:
-- To place a positive point at the center:
-  <tool_call>
-  {"name": "add_3d_point", "arguments": {"point_3d": [500, 500, 500], "point_type": "positive"}}
-  </tool_call>
-- To draw a bounding box around the liver:
-  <tool_call>
-  {"name": "add_3d_bbox", "arguments": {"bbox_3d": [200, 300, 250, 700, 650, 750]}}
-  </tool_call>
-- To stop when done:
-  <tool_call>
-  {"name": "stop_action"}
-  </tool_call>"""
-
-
-def build_system_prompt(
-    volume_shape: Tuple[int, int, int],
-    organ_names: Optional[List[str]] = None,
-) -> str:
-    """Build the full system prompt with tool definitions and instructions.
-
-    Uses normalized [0, 999] coordinate range (following MedSAM-Agent
-    convention) so the MLLM's output distribution is volume-size invariant.
-    Coordinates are denormalized to voxel space inside the agent loop.
-
-    Args:
-        volume_shape: (dz, dy, dx) voxel dimensions of the 3D volume.
-        organ_names: Optional list of organ/structure names to segment.
-
-    Returns:
-        Full system prompt string ready for the MLLM's system role.
-    """
+def build_system_prompt(volume_shape: Tuple[int, int, int],
+                        organ_names: Optional[List[str]] = None) -> str:
+    """Describe visible-panel grounding without suggesting a target coordinate."""
     dz, dy, dx = volume_shape
-    tools_str = build_tools_xml()
-    examples_str = _format_examples()
+    targets = f" Requested structures: {', '.join(organ_names)}." if organ_names else ""
+    return f"""You annotate a 3D medical volume using three full-slice panels, left to right:
+Axial | Coronal | Sagittal. Volume dimensions Z={dz}, Y={dy}, X={dx}.{targets}
+Green overlay is the current prediction; it may cover the wrong tissue.
 
-    organ_str = ""
-    if organ_names:
-        organ_str = (
-            f" You will be asked to segment specific organs: "
-            f"{', '.join(organ_names)}."
-        )
+Choose a point INSIDE the requested anatomical structure visible in a panel using
+add_view_point. Its point_2d is [u,v], relative to that panel's ANATOMY rectangle:
+u increases left to right, v top to bottom; endpoints are 0 and 999.
+Exclude headers, tick labels, margins and the other panels when estimating u,v.
+Axial holds Z fixed, u=X,v=Y. Coronal holds Y fixed, u=X,v=Z.
+Sagittal holds X fixed, u=Y,v=Z. The tool supplies the fixed slice coordinate.
+Use the patient direction labels to distinguish anatomical left/right; these are
+patient directions, not the viewer's left/right. If labels are absent, orientation is unknown.
+Margin focus ticks indicate the displayed slices, not a suggested target point.
+Do not choose a point just because it is at the focus or near an earlier click.
+If the structure is not visible, navigate to inspect other slices rather than guessing.
+Initialize with a positive point in target tissue. Later add positive points to missing
+target tissue or negative points to incorrect green tissue. Repeated clicks on incorrect
+foreground will not locate a different organ. Stop only when the nonempty overlay
+visibly covers the requested structure. Never claim accuracy from a nonempty mask alone.
 
-    return f"""You are a professional 3D medical segmentation annotator. You analyze a 3D CT/MRI volume through three orthogonal 2D slice views stitched side-by-side: [Axial | Coronal | Sagittal].
-
-The 3D volume dimensions are: Z={dz}, Y={dy}, X={dx} (voxel coordinates).{organ_str}
-
-The current segmentation mask is shown as a semi-transparent green overlay on each view. Your goal is to ensure the mask exactly covers the entire target organ and excludes all non-target tissue.
-
-IMPORTANT COORDINATE RULES:
-- All coordinates use a normalized range of [0, 999] in each dimension.
-- 0 represents the start of the volume, 999 represents the end.
-- So the center of the volume in every dimension is approximately 500.
-- For the bbox, [z1, y1, x1, z2, y2, x2] specifies opposite corners.
-
-# Tools
-
-You must call one function to assist with the user query.
-
-You are provided with function signatures within <tools></tools> XML tags:
+Legacy add_3d_point and navigate coordinates are normalized [z,y,x], each 0..999.
+Boxes use [z1,y1,x1,z2,y2,x2]; stock SAM approximates boxes with their center point.
+Return exactly one JSON tool call inside <tool_call>...</tool_call>, using the
+function name and arguments from these schemas:
 <tools>
-{tools_str}
-</tools>
-
-For each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:
-<tool_call>
-{{"name": <function-name>, "arguments": <args-json-object>}}
-</tool_call>
-{examples_str}
-
-Only use the provided functions to complete your task. Do not invent or assume any other functions. Carefully consider the current mask state and the tri-view slices before each action.
-
-Remember: the three views are [Axial | Coronal | Sagittal] from left to right. Each panel shows a full slice, not a crop centered at the focus. Cyan crosshairs mark the current focus intersection, whose normalized coordinates are included in each request. Axial: X increases right, Y down. Coronal: X increases right, Z down. Sagittal: Y increases right, Z down. Panel coordinate endpoints are 0 and 999, excluding headers and padding. Use navigate with point_3d to inspect other slices when the target is not visible. Initialize with a positive foreground point; stop only after producing a nonempty segmentation. Never infer anatomical left/right from an unspecified display convention."""
+{build_tools_xml()}
+</tools>"""

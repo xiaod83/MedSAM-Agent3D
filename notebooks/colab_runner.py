@@ -1,97 +1,143 @@
+"""Paired cell source for notebooks/colab.ipynb. Execute with a Colab kernel in VS Code."""
+
+# %% [markdown]
+# # MedSAM-Agent3D - laptop in charge, Colab on leg day
+#
+# Open **this local notebook in VS Code**, then **Select Kernel - Colab - a GPU server**. The notebook stays in your workspace; Python and the models execute on Colab. No WSL or terminal-to-Colab CLI needed.
+#
+# **One upload before Run All:**
+# 1. The ready-made source + one real CT case is `outputs/bundles/MedSAM-Agent3D-colab.zip` (~12 MB).
+# 2. After connecting the Colab kernel, right-click that ZIP in VS Code Explorer - **Upload to Colab**.
+# 3. This ZIP includes all grounding and Qwen3.8 tool-call fixes. Run the cells below in order; no separate patches or extra cells are needed. To rebuild after editing local code, run `.\.venv\Scripts\python.exe run.py bundle` in your local PowerShell terminal, then upload the new ZIP.
+#
+# The default target is the **left femur in s0000**, whose reference mask is nonempty. Upload your own scan/mask via the same Explorer action and change their remote paths below when ready.
+#
+# [Official extension guide](https://github.com/googlecolab/colab-vscode/wiki/User-Guide) - If the upload menu is absent, enable **Colab: Uploading** in VS Code settings. Results can be downloaded from the extension's **Colab - Contents** view.
+
+# %% [markdown]
+# ## 1 - Pick the case
+#
+# These are **paths on the Colab machine**, not Windows paths. This profile uses **Qwen3.8-27B in four-bit** on an **A100 40GB or larger**. Actual fit depends on input and runtime allocations. The base checkpoint download is much larger than 8B; four-bit conversion happens during loading.
+
 # %%
-"""Colab Pro handoff for the locally patched source bundle.
-Choose an A100/high-memory GPU runtime before starting. Run cells in order.
-Upload MedSAM-Agent3D-colab.zip built locally, or place it in the Drive path below.
-No remote Git checkout is used: the ZIP contains the actual reviewed source.
-"""
 from pathlib import Path
 from datetime import datetime, timezone
-import hashlib
-import json
-import shutil
-import subprocess
-import sys
-import zipfile
-from google.colab import drive, files
+import csv, hashlib, json, platform, shutil, subprocess, sys, zipfile
 
-drive.mount('/content/drive')
-DRIVE_DIR = Path('/content/drive/MyDrive/MedSAM-Agent3D')
-DRIVE_BUNDLE = DRIVE_DIR / 'MedSAM-Agent3D-colab.zip'
+BUNDLE = Path('/content/MedSAM-Agent3D-colab.zip')
 REPO_DIR = Path('/content/MedSAM-Agent3D')
-RESULT_DIR = Path('/content/medsam_results')
+VOLUME_PATH = REPO_DIR / 'data/Totalsegmentator_dataset_v201/s0000/ct.nii.gz'
+MASK_PATH = REPO_DIR / 'data/Totalsegmentator_dataset_v201/s0000/segmentations/femur_left.nii.gz'
+TARGET = 'femur_left'
+MODEL_ID = 'Qwen/Qwen3.8-27B'  # Native vision-language model; requires the new Qwen3.5-family loader.
+MAX_TURNS = 5
+SEED = 42
+LOAD_IN_4BIT = True  # 27B: four-bit on A100 40GB. Unquantized weights alone are about 54 GB.
+RUN_TESTS = False    # Optional full software regression suite.
+RUN_SAM_SMOKE = True  # Run SAM with reference-selected clicks before testing Qwen grounding.
+EXISTING_CHECKPOINT = None  # Optional readable REMOTE .pth path; mismatches trigger verified download.
 RUN_ID = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
-DRIVE_RESULTS = DRIVE_DIR / 'runs' / RUN_ID
-DRIVE_CHECKPOINT = DRIVE_DIR / 'sam_med3d_turbo.pth'
+RUN_DIR = REPO_DIR / 'outputs' / 'notebook' / RUN_ID
+WEIGHTS_DIR = Path('/content/medsam_weights')
 CHECKPOINT_URL = 'https://huggingface.co/blueyo0/SAM-Med3D/resolve/main/sam_med3d_turbo.pth'
 CHECKPOINT_SHA256 = '899a46d04d3b70f723282ceb489149373558bf0aaba389a346f5ab57da5cdd3c'
-MODEL_ID = 'Qwen/Qwen3-VL-8B-Instruct'
-LOAD_IN_4BIT = False  # Opt-in for smaller supported GPUs; fitting is not guaranteed.
-RUN_AGENT = True
-SAMPLE_DIR = REPO_DIR / 'data/Totalsegmentator_dataset_v201/s0000'
-VOLUME_PATH = SAMPLE_DIR / 'ct.nii.gz'
-MASK_PATH = SAMPLE_DIR / 'segmentations/femur_left.nii.gz'
-TARGET = 'femur_left'
-RESULT_DIR.mkdir(parents=True, exist_ok=True)
 
-def preserve_results():
-    DRIVE_RESULTS.mkdir(parents=True, exist_ok=True)
-    shutil.copytree(RESULT_DIR, DRIVE_RESULTS, dirs_exist_ok=True)
-    print('Saved logs and results:', DRIVE_RESULTS)
+if platform.system() != 'Linux' or not Path('/content').is_dir():
+    raise RuntimeError('Select the Colab GPU kernel in VS Code, then rerun this cell. This is currently a local kernel.')
+try:
+    gpu = subprocess.check_output(['nvidia-smi', '--query-gpu=name,memory.total', '--format=csv,noheader,nounits'], text=True).splitlines()[0]
+    GPU_NAME, memory_mib = gpu.rsplit(',', 1)
+    VRAM_GIB = float(memory_mib) / 1024
+except (OSError, subprocess.CalledProcessError, IndexError, ValueError) as exc:
+    raise RuntimeError('This kernel has no visible NVIDIA GPU. Select a GPU Colab server.') from exc
+if LOAD_IN_4BIT is None:
+    LOAD_IN_4BIT = VRAM_GIB < 24 or '32B' in MODEL_ID or '27B' in MODEL_ID
+if any(size in MODEL_ID for size in ('32B', '27B')) and VRAM_GIB < (32 if LOAD_IN_4BIT else 72):
+    raise RuntimeError('The larger-model notebook profile requires an A100-class GPU with at least 32 GiB for four-bit loading (72 GiB unquantized). Select an A100, or explicitly choose the 8B model. Fit still depends on input length and runtime allocations.')
+print(f'{GPU_NAME.strip()} - {VRAM_GIB:.1f} GiB VRAM - four-bit Qwen: {LOAD_IN_4BIT}')
+print('Remote Python:', sys.executable)
 
-def run_logged(command, name):
-    log_path = RESULT_DIR / f'{name}.log'
+# %% [markdown]
+# ## 2 - Unpack the good stuff
+#
+# Only the source and one scan/reference pair are in the ZIP. The full 30 GiB dataset and model weights are not uploaded.
+
+# %%
+if not BUNDLE.is_file():
+    raise FileNotFoundError(f'Right-click the local source ZIP - Upload to Colab, then set BUNDLE to its remote path. Expected: {BUNDLE}')
+REPO_DIR.mkdir(parents=True, exist_ok=True)
+with zipfile.ZipFile(BUNDLE) as archive:
+    for member in archive.infolist():
+        target = (REPO_DIR / member.filename).resolve()
+        is_link = ((member.external_attr >> 16) & 0o170000) == 0o120000
+        if not target.is_relative_to(REPO_DIR.resolve()) or is_link:
+            raise ValueError(f'Unsafe archive entry: {member.filename}')
+    archive.extractall(REPO_DIR)
+manifest_path = REPO_DIR / 'bundle_manifest.json'
+manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+if manifest.get('runtime_profile') != 'qwen38-native-tools-v1':
+    raise RuntimeError('This is an older bundle. Replace the remote ZIP with the current outputs/bundles/MedSAM-Agent3D-colab.zip and rerun. The current bundle includes native Qwen3.8 tool calls; no patch upload is needed.')
+for name, expected in manifest['files'].items():
+    path = (REPO_DIR / name).resolve()
+    if not path.is_relative_to(REPO_DIR.resolve()) or hashlib.sha256(path.read_bytes()).hexdigest() != expected:
+        raise ValueError(f'Source integrity check failed: {name}. Rebuild and re-upload the bundle.')
+if 'normalized_0_999_panel_uv_or_zyx' not in (REPO_DIR / 'medsam_agent3d/loop.py').read_text(encoding='utf-8'):
+    raise RuntimeError('This uploaded bundle predates the panel grounding fixes. Upload the newly rebuilt local ZIP, replacing the old remote ZIP, and rerun this cell.')
+if 'Qwen3.8' in MODEL_ID and not (REPO_DIR / 'requirements/qwen38.txt').is_file():
+    raise RuntimeError('Uploaded bundle lacks Qwen3.8 support. Replace the remote ZIP with the newly rebuilt local bundle.')
+print('Bundle SHA256:', hashlib.sha256(BUNDLE.read_bytes()).hexdigest())
+print('Model profile:', MODEL_ID, '| bundle:', manifest['runtime_profile'])
+RUN_DIR.mkdir(parents=True, exist_ok=True)
+WEIGHTS_DIR.mkdir(parents=True, exist_ok=True)
+shutil.copy2(manifest_path, RUN_DIR / 'bundle_manifest.json')
+
+
+def archive_results():
+    destination = REPO_DIR / 'outputs' / f'notebook_{RUN_ID}'
+    archive = Path(shutil.make_archive(str(destination), 'zip', RUN_DIR))
+    print('Download via Colab Contents:', archive)
+    return archive
+
+
+def run_logged(command, label):
+    print('Running:', subprocess.list2cmdline([str(arg) for arg in command]), flush=True)
     try:
-        with log_path.open('w', encoding='utf-8') as log:
-            log.write(subprocess.list2cmdline([str(arg) for arg in command]) + '\n')
-            log.flush()
+        with (RUN_DIR / f'{label}.log').open('w', encoding='utf-8') as log:
             process = subprocess.Popen(command, cwd=REPO_DIR, stdout=subprocess.PIPE,
                                        stderr=subprocess.STDOUT, text=True, bufsize=1)
             with process.stdout:
                 for line in process.stdout:
-                    print(line, end='')
+                    print(line, end='', flush=True)
                     log.write(line)
-            code = process.wait()
-            if code:
-                raise subprocess.CalledProcessError(code, command)
+                    log.flush()
+            status = process.wait()
+            if status:
+                raise subprocess.CalledProcessError(status, command)
     finally:
-        preserve_results()
+        archive_results()
+
+print('Source verified. Results:', RUN_DIR)
+
+# %% [markdown]
+# ## 3 - Give the remote Python its dependencies
+#
+# This installs into the Colab kernel's environment. Model commands run in fresh Python processes so the notebook does not need to restart after installation.
 
 # %%
-if DRIVE_BUNDLE.is_file():
-    bundle = DRIVE_BUNDLE
-else:
-    print('Upload the locally built MedSAM-Agent3D-colab.zip now.')
-    uploaded = files.upload()
-    if len(uploaded) != 1:
-        raise ValueError('Upload exactly one source ZIP.')
-    name, payload = next(iter(uploaded.items()))
-    bundle = Path('/content') / Path(name).name
-    bundle.write_bytes(payload)
-    del uploaded, payload
-# Extraction refuses traversal or links, and writes source only under /content.
-REPO_DIR.mkdir(parents=True, exist_ok=True)
-with zipfile.ZipFile(bundle) as archive:
-    for entry in archive.infolist():
-        target = (REPO_DIR / entry.filename).resolve()
-        if not target.is_relative_to(REPO_DIR.resolve()) or (entry.external_attr >> 16) & 0o170000 == 0o120000:
-            raise ValueError(f'Unsafe ZIP entry: {entry.filename}')
-    archive.extractall(REPO_DIR)
-if not (REPO_DIR / 'scripts/bootstrap.py').is_file():
-    raise RuntimeError('Bundle must contain project files at ZIP root. Rebuild using scripts/build_colab_bundle.py.')
-manifest = REPO_DIR / 'bundle_manifest.json'
-if not manifest.is_file():
-    raise RuntimeError('Source bundle manifest missing. Rebuild the handoff ZIP.')
-for relative, expected in json.loads(manifest.read_text(encoding='utf-8'))['files'].items():
-    source_path = (REPO_DIR / relative).resolve()
-    if not source_path.is_relative_to(REPO_DIR.resolve()):
-        raise ValueError(f'Unsafe manifest path: {relative}')
-    if hashlib.sha256(source_path.read_bytes()).hexdigest() != expected:
-        raise ValueError(f'Source bundle hash mismatch: {relative}')
-shutil.copy2(manifest, RESULT_DIR / manifest.name)
-print('Using patched source extracted to', REPO_DIR)
+requirements = ('requirements/qwen38.txt' if 'Qwen3.8' in MODEL_ID else
+                'requirements/quantized.txt' if LOAD_IN_4BIT else 'requirements/base.txt')
+run_logged([sys.executable, '-m', 'pip', 'install', '-q', '-r', requirements], 'install')
+run_logged([sys.executable, 'scripts/prepare_sam.py'], 'sam_import_setup')
+if RUN_TESTS:
+    run_logged([sys.executable, '-m', 'pip', 'install', '-q', '-r', 'requirements/dev.txt'], 'install_tests')
+    run_logged([sys.executable, 'run.py', 'test', '-q'], 'tests')
+
+# %% [markdown]
+# ## 4 - Fetch SAM, without the checkpoint drama
+#
+# Reuse a hash-verified remote checkpoint or download the published Turbo weights. An unrecognized existing checkpoint is left untouched. No Drive mount is required.
 
 # %%
-# Only a verified checkpoint is reused. Unrecognized Drive files are preserved.
 def verify_checkpoint(path):
     digest = hashlib.sha256()
     with path.open('rb') as source:
@@ -110,11 +156,11 @@ def ensure_checkpoint(destination, drive_checkpoint):
             return destination
         except (OSError, ValueError) as exc:
             print(f'Runtime checkpoint will be replaced with a verified download: {exc}')
-    if drive_checkpoint.is_file():
+    if drive_checkpoint is not None and drive_checkpoint.is_file():
         try:
             verify_checkpoint(drive_checkpoint)
         except (OSError, ValueError) as exc:
-            print(f'Preserving unrecognized Drive checkpoint and downloading official weights: {exc}')
+            print(f'Preserving unrecognized existing checkpoint and downloading official weights: {exc}')
         else:
             if drive_checkpoint.resolve() != destination.resolve():
                 shutil.copy2(drive_checkpoint, destination)
@@ -129,40 +175,114 @@ def ensure_checkpoint(destination, drive_checkpoint):
     return destination
 
 
-SAM_CKPT = ensure_checkpoint(REPO_DIR / 'sam_med3d_turbo.pth', DRIVE_CHECKPOINT)
-for path in (SAM_CKPT, VOLUME_PATH, MASK_PATH):
-    with path.open('rb') as source:
-        if not source.read(1):
-            raise ValueError(f'Empty input: {path}')
-# Application dependencies use PyPI; Colab's CUDA torch/torchvision pair is retained.
-command = [sys.executable, 'scripts/bootstrap.py', '--mode', 'cuda',
-           '--checkpoint', str(SAM_CKPT), '--output-dir', str(RESULT_DIR / 'checks')]
+
+SAM_CKPT = ensure_checkpoint(WEIGHTS_DIR / 'sam_med3d_turbo.pth',
+                             Path(EXISTING_CHECKPOINT) if EXISTING_CHECKPOINT else None)
+print('Verified SAM checkpoint:', SAM_CKPT)
+if not VOLUME_PATH.is_file():
+    raise FileNotFoundError(f'Upload your scan through Explorer or use the bundled sample: {VOLUME_PATH}')
+if MASK_PATH is not None and not MASK_PATH.is_file():
+    raise FileNotFoundError(f'Mask not found: {MASK_PATH}. Set MASK_PATH=None for inference without ground truth.')
+config = dict(target=TARGET, model=MODEL_ID, volume=str(VOLUME_PATH),
+              mask=str(MASK_PATH) if MASK_PATH else None, max_turns=MAX_TURNS,
+              seed=SEED, load_in_4bit=LOAD_IN_4BIT, gpu=GPU_NAME.strip(), vram_gib=VRAM_GIB)
+(RUN_DIR / 'notebook_config.json').write_text(json.dumps(config, indent=2), encoding='utf-8')
+SAM_SMOKE_READY = not RUN_SAM_SMOKE
+if RUN_SAM_SMOKE:
+    if MASK_PATH is None:
+        raise ValueError('The optional SAM smoke test needs a nonempty reference mask.')
+    print('SAM smoke test first: reference-selected clicks isolate SAM from Qwen grounding.')
+    try:
+        run_logged([sys.executable, 'run.py', 'validate', '--checkpoint', str(SAM_CKPT),
+                    '--volume', str(VOLUME_PATH), '--mask', str(MASK_PATH), '--target', TARGET,
+                    '--sam-device', 'cuda', '--output-dir', str(RUN_DIR / 'sam_smoke')], 'sam_smoke')
+    finally:
+        smoke_report_path = RUN_DIR / 'sam_smoke' / 'validation_report.json'
+        if smoke_report_path.is_file():
+            smoke_report = json.loads(smoke_report_path.read_text(encoding='utf-8'))
+            print('SAM smoke execution checks passed:', smoke_report.get('success', False))
+            scored = [step for step in smoke_report.get('steps', []) if step.get('iou') is not None]
+            for step in scored:
+                print('SAM', step.get('operation'), '| IoU:', step.get('iou'), '| Dice:', step.get('dice'))
+            overlap = scored[-1]['iou'] > 0 if scored else None
+            quality = 'unscored' if overlap is None else ('overlap_unvalidated' if overlap else 'no_overlap')
+            SAM_SMOKE_READY = bool(smoke_report.get('success') and overlap is True)
+            print('SAM quality_status:', quality, '| target_overlap:', overlap)
+            if overlap is False:
+                print('SEGMENTATION QUALITY FAILURE: SAM has ZERO target overlap even with a reference-selected click. Inspect SAM geometry/checkpoint before assessing Qwen.')
+            if smoke_report.get('error'):
+                print('SAM smoke error:', smoke_report['error'])
+            print('A passing smoke test or any overlap does not establish segmentation accuracy.')
+        else:
+            print('No SAM report generated. Inspect sam_smoke.log before running the agent.')
+else:
+    print('SAM smoke test disabled; SAM and Qwen grounding failures will not be isolated.')
+
+# %% [markdown]
+# ## 5 - Let Qwen drive
+#
+# Review the SAM smoke metrics above before starting the agent. The actual loop: tri-view - Qwen action - SAM mask - updated tri-view. Ground truth, when present, is used only for scoring this agent run. First use downloads the Qwen weights to the remote runtime.
+
+# %%
+if not SAM_SMOKE_READY:
+    raise RuntimeError('SAM smoke did not pass execution and target-overlap checks. Inspect sam_smoke.log and validation_report.json before downloading/running Qwen. A larger Qwen cannot repair this SAM failure.')
+command = [sys.executable, 'run.py', 'single', '--volume', str(VOLUME_PATH),
+           '--target', TARGET, '--model', MODEL_ID, '--sam-ckpt', str(SAM_CKPT),
+           '--device', 'cuda', '--sam-device', 'cuda', '--max-turns', str(MAX_TURNS),
+           '--temperature', '0', '--seed', str(SEED), '--output-dir', str(RUN_DIR)]
+if MASK_PATH is not None:
+    command += ['--mask', str(MASK_PATH)]
 if LOAD_IN_4BIT:
-    command.append('--quantized')
-run_logged(command, 'bootstrap_and_tests')
+    command.append('--load-in-4bit')
+run_logged(command, 'agent')
+
+# %% [markdown]
+# ## 6 - Show me the mask
+#
+# The summary reports execution success separately from IoU/Dice. A completed loop is not a guarantee of accurate segmentation. If the previous cell failed, you can still run this cell to inspect saved errors and logs.
 
 # %%
-import torch
-if not torch.cuda.is_available():
-    raise RuntimeError('Choose a GPU runtime before model validation.')
-print('GPU:', torch.cuda.get_device_name(0))
-print('VRAM GiB:', round(torch.cuda.get_device_properties(0).total_memory / 2**30, 1))
-print('Native BF16:', torch.cuda.is_bf16_supported())
-# First establish actual SAM checkpoint loading, prompts, refinement, and NIfTI export.
-validation = [sys.executable, 'scripts/validate_checkpoint.py', '--checkpoint', str(SAM_CKPT),
-              '--volume', str(VOLUME_PATH), '--mask', str(MASK_PATH), '--target', TARGET,
-              '--sam-device', 'cuda', '--seed', '42']
-run_logged(validation + ['--output-dir', str(RESULT_DIR / 'sam_validation')], 'real_sam_validation')
+from IPython.display import display, Markdown
+from PIL import Image
 
-# %%
-# Qwen weights download from Hugging Face. A100 is recommended for full precision.
-# T4 quantization is opt-in, with no guarantee that both models fit in memory.
-if RUN_AGENT:
-    command = validation + ['--agent', '--model', MODEL_ID, '--agent-device', 'cuda',
-                            '--output-dir', str(RESULT_DIR / 'agent_validation')]
-    if LOAD_IN_4BIT:
-        command.append('--load-in-4bit')
-    run_logged(command, 'real_agent_validation')
-preserve_results()
-print('Inspect validation_report.json, per-turn records, overlays, and predicted NIfTI masks in Drive.')
-print('The SAM smoke test uses a ground-truth foreground click. Only the agent stage tests autonomous prompting.')
+trajectory_path = RUN_DIR / 'trajectory.json'
+if trajectory_path.is_file():
+    result = json.loads(trajectory_path.read_text(encoding='utf-8'))
+    print('Execution completed:', result['success'], '| termination:', result.get('termination_reason'))
+    target_overlap = result.get('target_overlap')
+    if target_overlap is None and result.get('final_iou') is not None:
+        target_overlap = result['final_iou'] > 0
+    quality_status = result.get('quality_status')
+    if quality_status is None:
+        quality_status = 'unscored' if target_overlap is None else ('overlap_unvalidated' if target_overlap else 'no_overlap')
+    print('quality_status:', quality_status, '| target_overlap:', target_overlap)
+    if quality_status == 'no_overlap' or target_overlap is False:
+        display(Markdown('**SEGMENTATION QUALITY FAILURE: ZERO overlap with the reference target. The loop may have executed successfully, but this prediction did not segment the requested structure. Inspect the smoke test, prompts, and overlays.**'))
+    elif target_overlap is True:
+        print('Some target overlap is present; this does not establish accurate segmentation.')
+    else:
+        print('Quality is unscored. Review the mask; execution completion does not establish accuracy.')
+    if result.get('error'):
+        print('Error:', result['error'])
+    print('Final IoU:', result.get('final_iou'), '| Dice:', result.get('final_dice'))
+    rows = ['| Attempt | Action | IoU | Dice | Mask voxels |', '|---:|---|---:|---:|---:|']
+    for turn in result.get('turns', []):
+        iou = '-' if turn.get('iou') is None else f"{turn['iou']:.4f}"
+        dice = '-' if turn.get('dice') is None else f"{turn['dice']:.4f}"
+        rows.append(f"| {turn['turn']} | {turn['action'].get('name', '?')} | {iou} | {dice} | {turn['mask_voxels']} |")
+    display(Markdown('\n'.join(rows)))
+else:
+    print('No trajectory yet; inspect the printed error and agent.log in the result ZIP.')
+final_image = RUN_DIR / 'final.png'
+if final_image.is_file():
+    display(Image.open(final_image))
+RESULT_ZIP = archive_results()
+prediction = RUN_DIR / 'prediction.nii.gz'
+print('Prediction:', prediction if prediction.is_file() else 'Not generated; inspect agent.log')
+
+# %% [markdown]
+# ### Take the results home
+#
+# In the **Colab activity bar - Contents**, find the ZIP printed above and choose **Download**. It contains the prediction, PNGs, per-turn actions, metrics, configuration and logs. Save this notebook in VS Code to keep its displayed results locally.
+#
+# After editing project source locally, rebuild/upload the source ZIP and rerun from cell 2. Runtime files and downloaded model caches are ephemeral unless copied out. When finished, remove the GPU server using the Colab toolbar.

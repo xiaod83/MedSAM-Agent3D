@@ -1,4 +1,4 @@
-﻿# Start here
+# Start here
 
 Run everything from this project folder using **`run.py`**. Implementation files are in `medsam_agent3d/`; you do not need to execute them individually.
 
@@ -12,6 +12,13 @@ cd C:\Users\zhouq\MedSAM-Agent3D
 ```
 
 If your normal Python environment is activated, use `python run.py` instead.
+
+## GPU notebook in VS Code
+
+Open [notebooks/colab.ipynb](notebooks/colab.ipynb), select a **Colab GPU kernel** using the Google Colab extension, and follow the first markdown cell. Right-click `outputs/bundles/MedSAM-Agent3D-colab.zip` in VS Code Explorer ? **Upload to Colab**, then run the six code cells. The bundle includes all integrated Qwen3.8 native tool-call and panel grounding fixes plus one real left-femur case. No separate patch uploads are needed. No WSL, Colab CLI, or Drive mount is required.
+
+Rebuild the ZIP after local edits with `python run.py bundle`. Local Windows paths are not visible to the remote kernel; the notebook uses `/content/...` paths. Predictions, logs and a downloadable result ZIP appear in the extension's Colab Contents view.
+
 
 ## What to run
 
@@ -48,7 +55,7 @@ Add `--mask path/to/mask.nii.gz` to single-case inference to calculate reference
 
 ## Current execution status
 
-The lightweight tests run locally. Full inference still requires the scientific Python dependencies and readable model weights. This session blocks package downloads and checkpoint reads; the local MX110 also has only 2 GB of VRAM. Folder cleanup does not remove those execution limits.
+The integrated Qwen3.8-27B four-bit Colab pipeline completed on the bundled left-femur case with Dice 0.857 and IoU 0.750. This is a single-case result. The lightweight tests run locally. Local inference still requires the scientific Python dependencies and readable model weights. This session blocks package downloads and checkpoint reads; the local MX110 also has only 2 GB of VRAM. Folder cleanup does not remove those execution limits.
 
 **You do not need WSL for this folder, the launcher, or local tests.** The optional terminal-to-Colab CLI route currently requires Linux/macOS; it is not the default workflow. The separate Colab notebook is under `notebooks/`.
 

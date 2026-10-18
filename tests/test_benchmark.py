@@ -265,3 +265,38 @@ def test_cli_batch_reports_failure_exit(monkeypatch, tmp_path):
         cli.main_batch(["--ts-dir", "dataset", "--sam-device", "cpu", "--output-dir", str(tmp_path)])
     assert exc.value.code == 1
     assert seen["device"] == "cpu"
+
+
+def test_no_target_overlap_is_quality_failure_not_execution_failure(monkeypatch, capsys):
+    from medsam_agent3d import cli, evaluation
+    from medsam_agent3d.types import AgentResult
+    import pytest
+    result = AgentResult("case", "liver", success=True, final_iou=0., final_dice=0.,
+                         metrics_available=True, target_overlap=False, quality_status="no_overlap")
+    monkeypatch.setattr(evaluation, "evaluate_single", lambda **kwargs: result)
+    monkeypatch.setattr(cli, "_build_model_kwargs", lambda args: {})
+    with pytest.raises(SystemExit) as exc:
+        cli.main_single(["--volume", "scan.nii.gz", "--mask", "liver.nii.gz"])
+    assert exc.value.code == 2
+    assert result.success is True
+    assert "quality_status=no_overlap" in capsys.readouterr().err
+    evaluation._print_summary([result])
+    summary = capsys.readouterr().out
+    assert "execution completed: 1" in summary
+    assert "no target overlap: 1" in summary
+    assert "SEGMENTATION QUALITY FAILURE" in summary
+    payload = evaluation.result_dict(result)
+    assert payload["target_overlap"] is False
+    assert payload["quality_status"] == "no_overlap"
+
+
+def test_overlap_is_reported_as_unvalidated(capsys):
+    from medsam_agent3d import evaluation
+    from medsam_agent3d.types import AgentResult
+    result = AgentResult("case", "liver", success=True, final_iou=.01, final_dice=.02,
+                         metrics_available=True, target_overlap=True, quality_status="overlap_unvalidated")
+    evaluation._print_summary([result])
+    summary = capsys.readouterr().out
+    assert "overlap present but unvalidated: 1" in summary
+    assert "does not establish accuracy" in summary
+    assert "SEGMENTATION QUALITY FAILURE" not in summary

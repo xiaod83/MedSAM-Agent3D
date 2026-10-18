@@ -1,4 +1,4 @@
-"""Build the patched Colab handoff, including one real CT/reference-mask pair.
+"""Build the complete Colab handoff, including one real CT/reference-mask pair.
 
 The bundle contains source and a selected local sample only. It excludes the
 checkpoint, credentials, caches, Git metadata, and the rest of the dataset.
@@ -22,7 +22,7 @@ def main(argv=None):
         files.update(path for path in (ROOT / folder).rglob('*.py') if '__pycache__' not in path.parts)
     for name in ('run.py', 'requirements/base.txt', 'notebooks/colab_runner.py',
                  'notebooks/colab.ipynb', 'requirements.txt', 'requirements/dev.txt',
-                 'requirements/quantized.txt', 'pytest.ini', 'README.md', 'docs/DEVELOPMENT.md',
+                 'requirements/quantized.txt', 'requirements/qwen38.txt', 'pytest.ini', 'README.md', 'docs/DEVELOPMENT.md',
                  'notebooks/README.md', 'scripts/README.md', 'data/README.md', 'checkpoints/README.md',
                  'data/Totalsegmentator_dataset_v201/s0000/ct.nii.gz',
                  'data/Totalsegmentator_dataset_v201/s0000/segmentations/femur_left.nii.gz'):
@@ -34,7 +34,7 @@ def main(argv=None):
         revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
     except (OSError, subprocess.SubprocessError):
         revision = None
-    manifest = {'source_revision': revision, 'contains_uncommitted_repairs': True,
+    manifest = {'runtime_profile': 'qwen38-native-tools-v1', 'source_revision': revision, 'contains_uncommitted_repairs': True,
                 'validation_case': 's0000/femur_left', 'sample_is_smoke_test_not_held_out_benchmark': True,
                 'checkpoint_download': {
                     'url': 'https://huggingface.co/blueyo0/SAM-Med3D/resolve/main/sam_med3d_turbo.pth',

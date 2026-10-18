@@ -12,6 +12,7 @@ from .types import AgentResult, InferenceArgs, TurnRecord, compute_metrics
 from .rendering import render_triview
 from .parsing import denormalize_bbox, denormalize_point, validate_action
 from .prompting import build_system_prompt
+from .views import view_point_to_voxel
 from .agent import MLLMAgent
 
 
@@ -50,7 +51,7 @@ def run_agent_loop(
     result.config = {"model_id": getattr(mllm_agent, "model_id", type(mllm_agent).__name__),
                      "sam_checkpoint": getattr(sam_model, "checkpoint_path", None), "seed": seed, "max_turns": max_turns, "temperature": temperature,
                      "shape_zyx": list(volume.shape), "spacing_zyx": list(spacing),
-                     "coordinate_system": "normalized_0_999_zyx",
+                     "coordinate_system": "normalized_0_999_panel_uv_or_zyx",
                      "affine_xyz": None if affine is None else np.asarray(affine).tolist()}
     pred_mask = np.zeros(volume.shape, dtype=np.uint8)
     low_res_logits = None
@@ -81,12 +82,13 @@ def run_agent_loop(
             attempts += 1
             render_center = center
             image_path = os.path.join(output_dir, f"turn_{attempt:03d}.png")
-            triview = render_triview(volume, center, spacing, mask=pred_mask)
+            triview = render_triview(volume, center, spacing, mask=pred_mask, affine=affine)
             triview.save(image_path)
             focus = tuple(round(c / max(s - 1, 1) * 999) for c, s in zip(center, volume.shape))
-            request = (f"{instruction}. Current slice intersection (z,y,x), normalized: {focus}. "
-                       "Cyan crosshairs mark this intersection; panel axes increase right/down. "
-                       "Initialize with a positive point inside visible target tissue. "
+            request = (f"{instruction}. Current slice intersection (z,y,x), normalized: {focus}. " +
+                       ("Inspect green overlay and correct missing or incorrect tissue. " if initialized else
+                        "Select visible target tissue with a positive add_view_point. ") +
+                       "Panel point_2d uses the anatomy rectangle only, excluding margins. "
                        "Use navigate to inspect a different slice intersection if needed.")
             raw_action = mllm_agent.generate_action(
                 image=triview, instruction=request, system_prompt=system_prompt,
@@ -100,7 +102,7 @@ def run_agent_loop(
             failure = action.get("_error", "")
             if name == "stop_action" and not initialized:
                 failure = "No nonempty segmentation exists yet; initialize with a positive point."
-            if name == "add_3d_point" and not initialized and action["arguments"]["point_type"] == "negative":
+            if name in {"add_3d_point", "add_view_point"} and not initialized and action["arguments"]["point_type"] == "negative":
                 failure = "Initialize with a positive foreground point before negative refinement."
             iou, dice = metrics()
             if failure:
@@ -130,7 +132,10 @@ def run_agent_loop(
                     fallback = tuple((bbox[i] + bbox[i + 3]) // 2 for i in range(3))
                     mask, logits = sam_model.predict_mask(points=None, labels=None, box_3d=bbox, mask_logits=None)
                 else:
-                    point = denormalize_point(tuple(args["point_3d"]), volume.shape)
+                    point = (view_point_to_voxel(args["view"], args["point_2d"], render_center, volume.shape)
+                             if name == "add_view_point" else
+                             denormalize_point(tuple(args["point_3d"]), volume.shape))
+                    action["resolved_point_zyx"] = list(point)
                     fallback = point
                     mask, logits = sam_model.predict_mask(
                         points=[point], labels=[int(args["point_type"] == "positive")],
@@ -159,12 +164,15 @@ def run_agent_loop(
         reason = "execution_error"
     if reason != "execution_error":
         try:
-            render_triview(volume, center, spacing, mask=pred_mask).save(os.path.join(output_dir, "final.png"))
+            render_triview(volume, center, spacing, mask=pred_mask, affine=affine).save(os.path.join(output_dir, "final.png"))
         except Exception as exc:
             result.error = f"Saving final view failed: {exc}"
             reason = "execution_error"
     result.predicted_mask = pred_mask.copy()
     result.final_iou, result.final_dice = metrics()
+    if gt_mask is not None and np.any(gt_mask):
+        result.target_overlap = bool(np.any((pred_mask > 0) & (gt_mask > 0)))
+        result.quality_status = "overlap_unvalidated" if result.target_overlap else "no_overlap"
     result.termination_reason = reason
     result.success = initialized and not result.error
     if not initialized and not result.error:
