@@ -12,7 +12,7 @@ References:
 from typing import Optional, Tuple
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw
 
 
 def normalize_slice(slice_2d: np.ndarray) -> np.ndarray:
@@ -28,16 +28,14 @@ def resample_slice(
     spacing_2d: Tuple[float, float],
     target_spacing: Tuple[float, float] = (1.0, 1.0),
 ) -> np.ndarray:
-    """Resample a 2D slice to isotropic target spacing via bilinear interpolation."""
+    """Resample a 2D slice to isotropic target spacing via cubic interpolation."""
     import cv2
 
     scale_y = spacing_2d[0] / target_spacing[0]
     scale_x = spacing_2d[1] / target_spacing[1]
     if scale_y == 1.0 and scale_x == 1.0:
         return slice_2d
-    new_shape = (int(slice_2d.shape[0] * scale_y), int(slice_2d.shape[1] * scale_x))
-    if new_shape[0] == 0 or new_shape[1] == 0:
-        return slice_2d
+    new_shape = (max(1, int(slice_2d.shape[0] * scale_y)), max(1, int(slice_2d.shape[1] * scale_x)))
     return cv2.resize(slice_2d, (new_shape[1], new_shape[0]), interpolation=cv2.INTER_CUBIC)
 
 
@@ -106,9 +104,11 @@ def _pad_to_height(img: np.ndarray, target_height: int) -> np.ndarray:
 
 
 def _resample_mask(mask_2d: np.ndarray, spacing_2d: Tuple[float, float]) -> Optional[np.ndarray]:
-    """Resample and threshold a mask to isotropic spacing."""
-    resampled = resample_slice(mask_2d.astype(np.float32), spacing_2d)
-    return resampled > 0.5
+    """Preserve labels with nearest-neighbor interpolation."""
+    import cv2
+    height = max(1, int(mask_2d.shape[0] * spacing_2d[0]))
+    width = max(1, int(mask_2d.shape[1] * spacing_2d[1]))
+    return cv2.resize(mask_2d.astype(np.uint8), (width, height), interpolation=cv2.INTER_NEAREST) > 0
 
 
 def render_triview(
@@ -130,6 +130,13 @@ def render_triview(
     Returns:
         PIL Image of the tri-view stitched side-by-side.
     """
+    if volume.ndim != 3 or len(center) != 3:
+        raise ValueError("Expected a 3D volume and three-coordinate focus")
+    if len(spacing) != 3 or any(not np.isfinite(v) or v <= 0 for v in spacing):
+        raise ValueError("spacing must contain three positive finite values")
+    if mask is not None and mask.shape != volume.shape:
+        raise ValueError("Mask shape must match volume")
+    center = tuple(max(0, min(int(c), size - 1)) for c, size in zip(center, volume.shape))
     # Extract slices
     if mask is not None and mask.sum() > 0:
         (ax, cor, sag), (m_ax, m_cor, m_sag) = extract_triview(volume, center, mask=mask)
@@ -159,12 +166,32 @@ def render_triview(
     cor_norm = overlay_mask(cor_norm, m_cor_r)
     sag_norm = overlay_mask(sag_norm, m_sag_r)
 
-    # Pad to matching heights and stitch [Axial | Coronal | Sagittal]
-    h = max(ax_norm.shape[0], cor_norm.shape[0], sag_norm.shape[0])
-    triview = np.hstack([
-        _pad_to_height(ax_norm, h),
-        _pad_to_height(cor_norm, h),
-        _pad_to_height(sag_norm, h),
-    ])
-
-    return Image.fromarray(triview)
+    # Crosshairs mark slice intersection, independent of panel center/padding.
+    z, y, x = center
+    dz, dy, dx = volume.shape
+    panels = []
+    definitions = [
+        (ax_norm, (x / max(dx - 1, 1), y / max(dy - 1, 1)), f"Axial Z={z} | X right, Y down"),
+        (cor_norm, (x / max(dx - 1, 1), z / max(dz - 1, 1)), f"Coronal Y={y} | X right, Z down"),
+        (sag_norm, (y / max(dy - 1, 1), z / max(dz - 1, 1)), f"Sagittal X={x} | Y right, Z down"),
+    ]
+    height = max(ax_norm.shape[0], cor_norm.shape[0], sag_norm.shape[0])
+    for pixels, (fx, fy), label in definitions:
+        panel = Image.fromarray(pixels)
+        draw = ImageDraw.Draw(panel)
+        cx, cy = round(fx * (panel.width - 1)), round(fy * (panel.height - 1))
+        draw.line((cx, 0, cx, panel.height - 1), fill=(0, 220, 255))
+        draw.line((0, cy, panel.width - 1, cy), fill=(0, 220, 255))
+        framed = Image.new("RGB", (max(panel.width, 250), height + 42), (16, 16, 16))
+        framed.paste(panel, (0, 32))
+        frame_draw = ImageDraw.Draw(framed)
+        frame_draw.text((3, 3), label, fill="white")
+        frame_draw.text((3, 16), "Image edges: 0 -> 999 (exclude padding)", fill="white")
+        frame_draw.rectangle((0, 32, panel.width - 1, 32 + panel.height - 1), outline=(180, 180, 180))
+        panels.append(framed)
+    result = Image.new("RGB", (sum(p.width for p in panels) + 12, height + 42))
+    left = 0
+    for panel in panels:
+        result.paste(panel, (left, 0))
+        left += panel.width + 6
+    return result

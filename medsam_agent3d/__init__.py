@@ -13,22 +13,22 @@ Modules:
     cli         -- CLI entry points
 """
 
-from .types import TurnRecord, AgentResult, InferenceArgs
-from .rendering import render_triview
-from .parsing import parse_action, denormalize_coord
-from .prompting import build_system_prompt
-from .clicker import Click3D, Clicker3D
-from .agent import MLLMAgent, QwenVLAgent
-from .loop import run_agent_loop
-from .evaluation import evaluate_dataset, evaluate_single
+from importlib import import_module
 
-__all__ = [
-    "TurnRecord", "AgentResult", "InferenceArgs",
-    "render_triview",
-    "parse_action", "denormalize_coord",
-    "build_system_prompt",
-    "Click3D", "Clicker3D",
-    "MLLMAgent", "QwenVLAgent",
-    "run_agent_loop",
-    "evaluate_dataset", "evaluate_single",
-]
+# Keep navigation/help usable before the scientific dependencies are installed.
+_EXPORTS = {
+    "TurnRecord": "types", "AgentResult": "types", "InferenceArgs": "types",
+    "render_triview": "rendering", "parse_action": "parsing", "denormalize_coord": "parsing",
+    "build_system_prompt": "prompting", "Click3D": "clicker", "Clicker3D": "clicker",
+    "MLLMAgent": "agent", "QwenVLAgent": "agent", "run_agent_loop": "loop",
+    "evaluate_dataset": "evaluation", "evaluate_single": "evaluation",
+}
+__all__ = list(_EXPORTS)
+
+
+def __getattr__(name):
+    if name not in _EXPORTS:
+        raise AttributeError(name)
+    value = getattr(import_module(f".{_EXPORTS[name]}", __name__), name)
+    globals()[name] = value
+    return value

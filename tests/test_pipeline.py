@@ -140,7 +140,8 @@ class MockSAMMed3D:
                 mask: (Z, Y, X) uint8 binary mask.
                 logits: (1, 1, 32, 32, 32) dummy logits.
         """
-        mask = np.zeros((self.dz, self.dy, self.dx), dtype=np.uint8)
+        mask = (self._mask.copy() if mask_logits is not None and hasattr(self, "_mask")
+                else np.zeros((self.dz, self.dy, self.dx), dtype=np.uint8))
 
         # -- Bbox mode: fill the box
         if box_3d is not None:
@@ -165,6 +166,7 @@ class MockSAMMed3D:
 
         # Dummy low-res logits (just needs right shape for next iteration)
         logits = np.random.randn(1, 1, 32, 32, 32).astype(np.float32)
+        self._mask = mask.copy()
         return mask, logits
 
 
@@ -246,7 +248,7 @@ def run_smoke_test(
 
     # Prompting
     prompt = build_system_prompt(volume_shape, organ_names=["mock_organ"])
-    assert "Z=128" in prompt
+    assert f"Z={dz}" in prompt
     assert "mock_organ" in prompt
     assert "add_3d_bbox" in prompt
     assert "add_3d_point" in prompt
@@ -291,7 +293,7 @@ def run_smoke_test(
         volume_id="test_case_001",
         spacing=(1.5, 1.0, 1.0),
         max_turns=max_turns,
-        output_dir="test_outputs",
+        output_dir="outputs/tests",
         temperature=0.0,
         seed=seed,
     )
@@ -345,9 +347,9 @@ def run_smoke_test(
 
     # --- Check output files were created ---
     import glob
-    images = glob.glob("test_outputs/*.png")
+    images = glob.glob("outputs/tests/*.png")
     if images:
-        print(f"  Tri-view images: {len(images)} files saved to test_outputs/")
+        print(f"  Tri-view images: {len(images)} files saved to outputs/tests/")
     else:
         print("  (No tri-view images -- normal if directory clean)")
 

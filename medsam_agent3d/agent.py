@@ -85,9 +85,11 @@ class QwenVLAgent(MLLMAgent):
         """
         from transformers import AutoProcessor, Qwen3VLForConditionalGeneration
 
+        self.model_id = model_id
         print(f"Loading Qwen3-VL from {model_id}...")
         defaults = dict(
-            torch_dtype=torch.bfloat16,
+            torch_dtype=(torch.float32 if device_map == "cpu" or not torch.cuda.is_available()
+                         else torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16),
             device_map=device_map,
             trust_remote_code=True,
         )

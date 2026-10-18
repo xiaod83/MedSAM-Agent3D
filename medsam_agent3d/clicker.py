@@ -59,8 +59,8 @@ class Clicker3D:
 
     @property
     def all_clicks(self) -> List[Click3D]:
-        """All clicks in order (positives first, then negatives)."""
-        return self.positives + self.negatives
+        """All clicks in insertion order, independent of their label."""
+        return sorted(self.positives + self.negatives, key=lambda c: c.indx if c.indx is not None else -1)
 
     @property
     def num_positives(self) -> int:
@@ -134,15 +134,21 @@ class Clicker3D:
             "positives": [c.coords for c in self.positives],
             "negatives": [c.coords for c in self.negatives],
             "bboxes": self.bboxes,
+            "clicks": [{"coords": c.coords, "is_positive": c.is_positive, "turn": c.turn} for c in self.all_clicks],
         }
 
     def set_state(self, state: dict):
         """Restore state from a dict."""
         self.reset()
-        for coords in state.get("positives", []):
-            self.add_positive(coords)
-        for coords in state.get("negatives", []):
-            self.add_negative(coords)
+        if "clicks" in state:
+            for click in state["clicks"]:
+                add = self.add_positive if click["is_positive"] else self.add_negative
+                add(tuple(click["coords"]), click.get("turn", 0))
+        else:
+            for coords in state.get("positives", []):
+                self.add_positive(coords)
+            for coords in state.get("negatives", []):
+                self.add_negative(coords)
         for bbox in state.get("bboxes", []):
             self.set_bbox(bbox)
 

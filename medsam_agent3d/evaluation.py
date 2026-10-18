@@ -1,244 +1,194 @@
-"""
-Evaluation runners: single-case and batch evaluation.
-
-Provides ``evaluate_single()`` for one volume and ``evaluate_dataset()``
-for batch evaluation over multiple volume/target pairs. Handles data
-loading, metrics aggregation, and JSON result serialization.
-
-References:
-    MedSAM-Agent run_single_image_inference() and save_metrics_json().
-"""
-
+"""Evaluation, complete trajectory persistence, and failure-aware summaries."""
 import json
 import os
-import sys
-from typing import Any, Dict, List, Optional, Tuple
+from dataclasses import asdict
+from typing import Any, Dict, List, Optional
 
 import numpy as np
-
-from .types import AgentResult, compute_metrics
+from .types import AgentResult
 from .agent import MLLMAgent, QwenVLAgent
 from .loop import run_agent_loop
 
 
-def evaluate_single(
-    model_id: str = "Qwen/Qwen3-VL-8B-Instruct",
-    volume_path: Optional[str] = None,
-    mask_path: Optional[str] = None,
-    target_name: str = "organ",
-    sam_ckpt: Optional[str] = None,
-    output_dir: str = "eval_outputs",
-    max_turns: int = 5,
-    temperature: float = 0.1,
-    **model_kwargs,
-) -> AgentResult:
-    """Evaluate the agent loop on a single NIfTI volume.
+def checkpoint_provenance(path=None):
+    """Fingerprint the actual SAM weights, caching by file size and modification time."""
+    root = os.path.dirname(os.path.dirname(__file__))
+    default = os.path.join(root, "checkpoints", "sam_med3d_turbo.pth")
+    if not os.path.isfile(default):
+        default = os.path.join(root, "sam_med3d_turbo.pth")
+    path = os.path.abspath(path or default)
+    if not os.path.isfile(path):
+        return {"path": path, "exists": False}
+    try:
+        stat = os.stat(path)
+        return _checkpoint_fingerprint(path, stat.st_size, stat.st_mtime_ns)
+    except OSError as exc:
+        # A provenance failure must not prevent saving the original model error.
+        return {"path": path, "exists": True, "readable": False,
+                "error": f"{type(exc).__name__}: {exc}"}
 
-    Loads data, initializes models, runs the agent loop, and prints results.
 
-    Args:
-        model_id: HuggingFace model ID for Qwen3-VL.
-        volume_path: Path to NIfTI volume (.nii.gz).
-        mask_path: Path to NIfTI ground truth mask (.nii.gz).
-        target_name: Organ/structure name.
-        sam_ckpt: Path to SAM-Med3D checkpoint.
-        output_dir: Output directory for images and results.
-        max_turns: Max agent interaction turns.
-        temperature: MLLM sampling temperature.
-        **model_kwargs: Passed to QwenVLAgent (device_map, quantization_config, etc.).
+from functools import lru_cache
 
-    Returns:
-        AgentResult with final metrics.
-    """
-    from models.sam_med3d_wrapper import FrozenSAMMed3D
-    from utils.io_utils import load_nifti
 
-    vol, spacing = load_nifti(volume_path)
-    mask, _ = load_nifti(mask_path)
-    mask = (mask > 0).astype(np.uint8)
-    vol_id = os.path.splitext(os.path.basename(volume_path))[0]
-    vol_id = vol_id.replace(".nii", "").replace(".gz", "")
+@lru_cache(maxsize=8)
+def _checkpoint_fingerprint(path, size, mtime):
+    import hashlib
+    digest = hashlib.sha256()
+    with open(path, "rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+    return {"path": path, "size_bytes": size, "sha256": digest.hexdigest()}
 
-    print(f"Volume: {vol.shape}, spacing={spacing}, "
-          f"mask voxels={int(mask.sum()):,}")
+def runtime_provenance():
+    """Capture reproducibility metadata without importing optional dependencies."""
+    import importlib.metadata
+    import platform
+    import subprocess
+    versions = {}
+    for name in ("numpy", "torch", "torchio", "nibabel", "scipy", "pillow", "transformers", "qwen-vl-utils"):
+        try:
+            versions[name] = importlib.metadata.version(name)
+        except importlib.metadata.PackageNotFoundError:
+            versions[name] = None
+    try:
+        git_revision = subprocess.check_output(["git", "rev-parse", "HEAD"],
+            cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            stderr=subprocess.DEVNULL, text=True, timeout=5).strip()
+        dirty = bool(subprocess.check_output(["git", "status", "--porcelain"],
+            cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            stderr=subprocess.DEVNULL, text=True, timeout=5).strip())
+    except (OSError, subprocess.SubprocessError):
+        git_revision, dirty = None, None
+    return {"python": platform.python_version(), "package_versions": versions,
+            "git_revision": git_revision, "git_dirty": dirty}
 
+def _json_default(value):
+    if isinstance(value, np.generic):
+        return value.item()
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+    return str(value)
+
+
+def result_dict(result):
+    # Avoid asdict(result): it deep-copies the potentially large voxel array.
+    return {key: ( [asdict(t) for t in value] if key == "turns" else value)
+            for key, value in vars(result).items() if key != "predicted_mask"}
+
+
+def save_case_result(result, output_dir, reference_path=None):
+    """Save the full trajectory and a mask in the source NIfTI geometry."""
+    os.makedirs(output_dir, exist_ok=True)
+    result.config.setdefault('environment', runtime_provenance())
+    result.config.setdefault('sam_weights', checkpoint_provenance(result.config.get('sam_checkpoint')))
+    if result.predicted_mask is not None:
+        if reference_path:
+            from medsam_agent3d.io import save_nifti
+            result.mask_path = os.path.join(output_dir, "prediction.nii.gz")
+            save_nifti(result.predicted_mask, result.mask_path, reference_path=reference_path)
+        else:
+            result.mask_path = os.path.join(output_dir, "prediction.npy")
+            np.save(result.mask_path, result.predicted_mask.astype(np.uint8))
+    with open(os.path.join(output_dir, "trajectory.json"), "w", encoding="utf-8") as stream:
+        json.dump(result_dict(result), stream, indent=2, default=_json_default, allow_nan=False)
+
+
+def evaluate_single(model_id="Qwen/Qwen3-VL-8B-Instruct", volume_path=None,
+                    mask_path=None, target_name="organ", sam_ckpt=None,
+                    output_dir="outputs/inference", max_turns=5, temperature=0.1,
+                    seed=42, sam_device="auto", **model_kwargs):
+    from medsam_agent3d.sam import FrozenSAMMed3D
+    from medsam_agent3d.io import load_nifti
+    if not volume_path:
+        raise ValueError("volume_path is required")
+    vol, spacing, affine = load_nifti(volume_path, return_affine=True)
+    mask = None
+    if mask_path:
+        mask, mask_spacing, mask_affine = load_nifti(mask_path, return_affine=True, reference_path=volume_path, is_label=True)
+        if mask.shape != vol.shape or not np.allclose(mask_affine, affine):
+            raise ValueError("Ground truth must have the same voxel grid and affine as the volume")
+        mask = (mask > 0).astype(np.uint8)
+    from .cli import seed_everything
+    seed_everything(seed)
     mllm = QwenVLAgent(model_id, **model_kwargs)
-    sam = FrozenSAMMed3D(
-        checkpoint_path=sam_ckpt) if sam_ckpt else FrozenSAMMed3D()
-
-    result = run_agent_loop(
-        mllm_agent=mllm,
-        sam_model=sam,
-        volume=vol,
-        gt_mask=mask,
-        target_name=target_name,
-        volume_id=vol_id,
-        spacing=spacing,
-        max_turns=max_turns,
-        output_dir=output_dir,
-        temperature=temperature,
-    )
-
-    print(f"\n{'='*40}")
-    print(f"FINAL: IoU={result.final_iou:.4f}, "
-          f"Dice={result.final_dice:.4f}, "
-          f"Turns={len(result.turns)}")
-    print(f"{'='*40}")
+    sam = FrozenSAMMed3D(checkpoint_path=sam_ckpt, device=sam_device) if sam_ckpt else FrozenSAMMed3D(device=sam_device)
+    result = run_agent_loop(mllm_agent=mllm, sam_model=sam, volume=vol,
+        gt_mask=mask, target_name=target_name,
+        volume_id=os.path.basename(volume_path).replace(".nii.gz", "").replace(".nii", ""),
+        spacing=spacing, affine=affine, max_turns=max_turns,
+        output_dir=output_dir, temperature=temperature, seed=seed)
+    result.config.update(model_id=model_id, sam_checkpoint=sam_ckpt, sam_device=str(sam.device),
+        volume_path=os.path.abspath(volume_path), mask_path=mask_path,
+        max_turns=max_turns, temperature=temperature, seed=seed,
+        model_kwargs={k: str(v) for k, v in model_kwargs.items()})
+    save_case_result(result, output_dir, volume_path)
+    _print_summary([result])
+    _save_results_json([result], output_dir)
     return result
 
 
-def evaluate_dataset(
-    mllm_agent: MLLMAgent,
-    sam_model: "FrozenSAMMed3D",
-    dataset_entries: List[Dict[str, Any]],
-    output_dir: str = "eval_outputs",
-    max_turns: int = 5,
-    temperature: float = 0.1,
-    seed: int = 42,
-) -> List[AgentResult]:
-    """Run agent evaluation over a list of volume/mask entries.
-
-    Args:
-        mllm_agent: Pre-loaded MLLM agent.
-        sam_model: Pre-loaded SAM-Med3D model.
-        dataset_entries: List of dicts, each with:
-            - volume_path (or volume): path or np.ndarray
-            - mask_path (or mask): path or np.ndarray
-            - target_name: str
-            - volume_id: str
-            - spacing: optional (dz, dy, dx)
-        output_dir: Base output directory.
-        max_turns: Max turns per sample.
-        temperature: MLLM sampling temperature.
-        seed: Random seed.
-
-    Returns:
-        List of AgentResult objects.
-    """
-    results: List[AgentResult] = []
-    total = len(dataset_entries)
-
-    for i, entry in enumerate(dataset_entries):
-        vol_id = entry["volume_id"]
-        tgt = entry["target_name"]
-        print(f"\n{'='*60}")
-        print(f"[{i+1}/{total}] {vol_id} / {tgt}")
-        print(f"{'='*60}")
-
+def evaluate_dataset(mllm_agent: MLLMAgent, sam_model, dataset_entries: List[Dict[str, Any]],
+                     output_dir="outputs/inference", max_turns=5, temperature=0.1, seed=42):
+    from medsam_agent3d.io import load_nifti
+    results = []
+    for entry in dataset_entries:
+        vol_id, target = entry["volume_id"], entry["target_name"]
+        reference_path = entry.get("volume_path") or entry.get("ct_path")
+        case_dir = os.path.join(output_dir, vol_id, target)
         try:
-            # Load volume if path provided, or use pre-loaded array
-            volume = entry.get("volume")
-            spacing_val = entry.get("spacing", (1.0, 1.0, 1.0))
-            if volume is None and "volume_path" in entry:
-                from utils.io_utils import load_nifti
-                volume, spacing_val = load_nifti(entry["volume_path"])
-
-            # Load mask
+            volume, spacing, affine = entry.get("volume"), entry.get("spacing", (1., 1., 1.)), entry.get("affine")
+            if volume is None:
+                if not reference_path:
+                    raise ValueError("Entry requires volume, volume_path, or ct_path")
+                volume, spacing, affine = load_nifti(reference_path, return_affine=True)
             mask = entry.get("mask")
-            if mask is None and "mask_path" in entry:
-                from utils.io_utils import load_nifti
-                mask, _ = load_nifti(entry["mask_path"])
+            if mask is None and entry.get("mask_path"):
+                mask, _, mask_affine = load_nifti(entry["mask_path"], return_affine=True, reference_path=reference_path, is_label=True)
+                if affine is not None and not np.allclose(affine, mask_affine):
+                    raise ValueError("Ground truth affine differs from volume")
+            if mask is not None:
+                if mask.shape != volume.shape:
+                    raise ValueError("Ground truth shape differs from volume")
                 mask = (mask > 0).astype(np.uint8)
-
-            res = run_agent_loop(
-                mllm_agent=mllm_agent,
-                sam_model=sam_model,
-                volume=volume,
-                gt_mask=mask,
-                target_name=tgt,
-                volume_id=vol_id,
-                spacing=spacing_val,
-                max_turns=max_turns,
-                output_dir=os.path.join(output_dir, vol_id, tgt),
-                temperature=temperature,
-                seed=seed,
-            )
-            results.append(res)
-
-        except Exception as e:
-            import traceback
-            print(f"  ERROR: {e}")
-            traceback.print_exc()
-            results.append(AgentResult(
-                volume_id=vol_id, target_name=tgt,
-                error=str(e),
-            ))
-
-    # --- Summary ---
+            result = run_agent_loop(mllm_agent=mllm_agent, sam_model=sam_model,
+                volume=volume, gt_mask=mask, target_name=target, volume_id=vol_id,
+                spacing=spacing, affine=affine, max_turns=max_turns,
+                output_dir=case_dir, temperature=temperature, seed=seed)
+        except Exception as exc:
+            result = AgentResult(volume_id=vol_id, target_name=target, error=str(exc), termination_reason="error")
+        if not result.success and result.final_iou is None and (entry.get("mask") is not None or entry.get("mask_path")):
+            result.final_iou, result.final_dice = 0.0, 0.0
+            result.metrics_available = True
+        result.config.update(volume_path=reference_path, mask_path=entry.get("mask_path"),
+                             max_turns=max_turns, temperature=temperature, seed=seed,
+                             sam_checkpoint=getattr(sam_model, 'checkpoint_path', None),
+                             sam_device=str(getattr(sam_model, 'device', 'unknown')),
+                             model_id=getattr(mllm_agent, 'model_id', type(mllm_agent).__name__))
+        # Persistence failures should be visible rather than losing the entire batch.
+        try:
+            save_case_result(result, case_dir, reference_path)
+        except Exception as exc:
+            result.success = False
+            result.error = (result.error + "; " if result.error else "") + "Saving failed: " + str(exc)
+        results.append(result)
     _print_summary(results)
-
-    # --- Save ---
     _save_results_json(results, output_dir)
-
     return results
 
 
-def _print_summary(results: List[AgentResult]):
-    """Print aggregate evaluation summary."""
-    print(f"\n{'='*60}")
-    print("EVALUATION SUMMARY")
-    print(f"{'='*60}")
+def _print_summary(results):
     successful = [r for r in results if r.success]
-    print(f"Total cases: {len(results)}")
-    print(f"Successful:  {len(successful)}")
-    print(f"Failed:      {len(results) - len(successful)}")
-
-    if successful:
-        ious = [r.final_iou for r in successful]
-        dices = [r.final_dice for r in successful]
-        turns_list = [len(r.turns) for r in successful]
-        print(f"\nMetrics (mean ± std):")
-        print(f"  IoU:   {np.mean(ious):.4f} ± {np.std(ious):.4f}")
-        print(f"  Dice:  {np.mean(dices):.4f} ± {np.std(dices):.4f}")
-        print(f"  Turns: {np.mean(turns_list):.2f} ± {np.std(turns_list):.2f}")
-
-        # Per-organ breakdown (if multiple)
-        organs: Dict[str, Dict[str, List[float]]] = {}
-        for r in successful:
-            org = r.target_name
-            if org not in organs:
-                organs[org] = {"ious": [], "dices": [], "turns": []}
-            organs[org]["ious"].append(r.final_iou)
-            organs[org]["dices"].append(r.final_dice)
-            organs[org]["turns"].append(float(len(r.turns)))
-
-        if len(organs) > 1:
-            print(f"\nPer-organ breakdown:")
-            for org, metrics in sorted(organs.items()):
-                print(
-                    f"  {org}: "
-                    f"IoU={np.mean(metrics['ious']):.4f}±{np.std(metrics['ious']):.4f}, "
-                    f"Dice={np.mean(metrics['dices']):.4f}±{np.std(metrics['dices']):.4f}, "
-                    f"Turns={np.mean(metrics['turns']):.2f}±{np.std(metrics['turns']):.2f} "
-                    f"(n={len(metrics['ious'])})"
-                )
+    scored = [r for r in results if r.final_iou is not None and r.final_dice is not None]
+    print(f"Cases: {len(results)}, successful: {len(successful)}, failed: {len(results)-len(successful)}, scored: {len(scored)}")
+    if scored:
+        # Failed cases contribute zero to the primary score, preserving the denominator.
+        ious = [r.final_iou if r.success else 0. for r in scored]
+        dices = [r.final_dice if r.success else 0. for r in scored]
+        print(f"IoU (failure=0): {np.mean(ious):.4f}; Dice (failure=0): {np.mean(dices):.4f}")
 
 
-def _save_results_json(results: List[AgentResult], output_dir: str):
-    """Serialize results to a JSON file."""
-    results_json = []
-    for r in results:
-        results_json.append({
-            "volume_id": r.volume_id,
-            "target_name": r.target_name,
-            "success": r.success,
-            "error": r.error,
-            "final_iou": r.final_iou,
-            "final_dice": r.final_dice,
-            "num_turns": len(r.turns),
-            "turns": [
-                {
-                    "turn": t.turn,
-                    "action": t.action,
-                    "iou": t.iou,
-                    "dice": t.dice,
-                    "mask_voxels": t.mask_voxels,
-                }
-                for t in r.turns
-            ],
-        })
-
-    summary_path = os.path.join(output_dir, "evaluation_summary.json")
-    with open(summary_path, "w") as f:
-        json.dump(results_json, f, indent=2)
-    print(f"\nDetailed results saved to {summary_path}")
+def _save_results_json(results, output_dir):
+    os.makedirs(output_dir, exist_ok=True)
+    with open(os.path.join(output_dir, "evaluation_summary.json"), "w", encoding="utf-8") as stream:
+        json.dump([result_dict(r) for r in results], stream, indent=2, default=_json_default, allow_nan=False)

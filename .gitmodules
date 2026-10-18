@@ -1,0 +1,6 @@
+[submodule "SAM-Med3D"]
+	path = SAM-Med3D
+	url = https://github.com/uni-medical/SAM-Med3D.git
+[submodule "MedSAM-Agent"]
+	path = MedSAM-Agent
+	url = https://github.com/xiaod83/MedSAM-Agent.git

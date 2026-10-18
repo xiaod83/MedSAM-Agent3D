@@ -1,0 +1,3 @@
+# Optional CUDA quantization support; install only for --load-in-4bit.
+-r base.txt
+bitsandbytes>=0.43.0

@@ -6,7 +6,7 @@ References:
 """
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 
 @dataclass
@@ -19,7 +19,7 @@ class InferenceArgs:
     # --- Required ---
     target_name: str = ""
     volume_id: str = ""
-    output_dir: str = "eval_outputs"
+    output_dir: str = "outputs/inference"
 
     # --- Agent loop ---
     max_turns: int = 5
@@ -33,6 +33,7 @@ class InferenceArgs:
 
     # --- SAM-Med3D ---
     sam_checkpoint: Optional[str] = None
+    sam_device: str = "auto"
 
     # --- Visualization ---
     save_trajectories: bool = False
@@ -46,10 +47,12 @@ class TurnRecord:
     image_path: str
     action: dict
     raw_output: str
-    iou: float
-    dice: float
+    iou: Optional[float]
+    dice: Optional[float]
     mask_voxels: int
     center: Tuple[int, int, int]
+    error: str = ""
+    next_center: Optional[Tuple[int, int, int]] = None
 
 
 @dataclass
@@ -58,10 +61,15 @@ class AgentResult:
     volume_id: str
     target_name: str
     turns: List[TurnRecord] = field(default_factory=list)
-    final_iou: float = 0.0
-    final_dice: float = 0.0
+    final_iou: Optional[float] = None
+    final_dice: Optional[float] = None
     success: bool = False
     error: str = ""
+    predicted_mask: Optional[Any] = field(default=None, repr=False)
+    mask_path: Optional[str] = None
+    metrics_available: bool = False
+    termination_reason: str = ""
+    config: Dict[str, Any] = field(default_factory=dict)
 
 
 # --- Coordinate types ---
@@ -78,21 +86,33 @@ NormPoint = Tuple[NormCoord, NormCoord, NormCoord]
 NormBBox = Tuple[NormCoord, NormCoord, NormCoord, NormCoord, NormCoord, NormCoord]
 
 
-def compute_iou_3d(pred: "np.ndarray", gt: "np.ndarray") -> float:
-    """3D Intersection-over-Union."""
+def _binary_masks(pred, gt):
     import numpy as np
-    inter = np.logical_and(pred, gt).sum()
+    pred, gt = np.asarray(pred), np.asarray(gt)
+    if pred.ndim != 3 or pred.shape != gt.shape:
+        raise ValueError("Metrics require matching 3D mask shapes")
+    if not np.isfinite(pred).all() or not np.isfinite(gt).all():
+        raise ValueError("Metrics require finite mask values")
+    return pred.astype(bool), gt.astype(bool)
+
+
+def compute_iou_3d(pred: "np.ndarray", gt: "np.ndarray") -> float:
+    """Binary IoU; two empty masks score one."""
+    import numpy as np
+    pred, gt = _binary_masks(pred, gt)
+    intersection = np.logical_and(pred, gt).sum()
     union = np.logical_or(pred, gt).sum()
-    return float(inter / union) if union > 0 else 0.0
+    return float(intersection / union) if union else 1.0
 
 
 def compute_dice_3d(pred: "np.ndarray", gt: "np.ndarray") -> float:
-    """3D Dice coefficient."""
+    """Binary Dice; two empty masks score one."""
     import numpy as np
-    inter = np.logical_and(pred, gt).sum()
-    return float(2 * inter / (pred.sum() + gt.sum() + 1e-8))
+    pred, gt = _binary_masks(pred, gt)
+    denominator = pred.sum() + gt.sum()
+    return float(2 * np.logical_and(pred, gt).sum() / denominator) if denominator else 1.0
 
 
 def compute_metrics(pred: "np.ndarray", gt: "np.ndarray") -> Tuple[float, float]:
-    """Compute (IoU, Dice) for 3D binary masks."""
+    """Compute binary IoU and Dice on matching 3D grids."""
     return compute_iou_3d(pred, gt), compute_dice_3d(pred, gt)

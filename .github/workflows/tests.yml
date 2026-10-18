@@ -1,0 +1,29 @@
+name: CPU regression checks
+on:
+  push:
+  pull_request:
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install matching CPU PyTorch packages
+        run: python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+      - name: Install application and test dependencies
+        run: python -m pip install -r requirements/dev.txt
+      - name: Prepare upstream import compatibility
+        run: python scripts/prepare_sam.py
+      - name: Compile first-party modules
+        run: python -m compileall -q medsam_agent3d scripts run.py notebooks/colab_runner.py
+      - name: Run regression tests
+        run: python -m pytest -q
+      - name: Run mock smoke tests
+        run: |
+          python tests/test_pipeline.py
+          python tests/test_benchmark.py

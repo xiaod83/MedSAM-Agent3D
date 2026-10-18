@@ -11,11 +11,12 @@ References:
 """
 
 import json
+import math
 import re
 from typing import Any, Dict, Optional, Tuple
 
 
-# Sentinel value: a well-formed but empty action (no valid tool call found)
+# Explicit stop action; never used as a parsing fallback.
 STOP_ACTION: Dict[str, Any] = {"name": "stop_action"}
 
 
@@ -32,7 +33,20 @@ def extract_balanced_json(text: str) -> Optional[str]:
     if start == -1:
         return None
     depth = 0
+    in_string = False
+    escaped = False
     for i, ch in enumerate(text[start:], start):
+        if in_string:
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == '"':
+                in_string = False
+            continue
+        if ch == '"':
+            in_string = True
+            continue
         if ch == "{":
             depth += 1
         elif ch == "}":
@@ -50,7 +64,7 @@ def parse_action(text: str) -> Dict[str, Any]:
     2. Raw JSON: ``{"name": "...", "arguments": {...}}``
     3. Flat JSON (legacy): ``{"name": "add_3d_bbox", "bbox_3d": [...]}``
 
-    If no valid action can be extracted, returns ``{"name": "stop_action"}``.
+    Invalid output returns invalid_action with a diagnostic; only explicit stop calls stop.
 
     Args:
         text: Raw MLLM response text.
@@ -62,6 +76,8 @@ def parse_action(text: str) -> Dict[str, Any]:
         - ``_raw_output``: the original raw text
     """
     # Primary: MedSAM-Agent style <tool_call>{"name": ...}</tool_call>
+    if not isinstance(text, str):
+        return {"name": "invalid_action", "_error": "Response must be text", "_raw_output": repr(text)}
     tool_match = re.search(
         r"<tool_call>\s*(.*?)\s*</tool_call>", text, re.DOTALL
     )
@@ -71,13 +87,41 @@ def parse_action(text: str) -> Dict[str, Any]:
     if json_str:
         try:
             obj = json.loads(json_str)
-            if "name" in obj:
-                obj["_raw_output"] = text
-                return obj
+            return validate_action(obj, raw_output=text)
         except json.JSONDecodeError:
             pass
 
-    return STOP_ACTION | {"_raw_output": text}
+    return {"name": "invalid_action", "_error": "No valid JSON tool call found", "_raw_output": text}
+
+
+def validate_action(action: Any, raw_output: Optional[str] = None) -> Dict[str, Any]:
+    """Validate tool arguments before any model state is changed."""
+    raw = raw_output if raw_output is not None else (action.get("_raw_output", "") if isinstance(action, dict) else "")
+    def invalid(message):
+        return {"name": "invalid_action", "_error": str(message), "_raw_output": str(raw)}
+    if not isinstance(action, dict):
+        return invalid("Tool call must be an object")
+    name = action.get("name")
+    if not isinstance(name, str) or name not in {"add_3d_point", "add_3d_bbox", "stop_action", "navigate"}:
+        return invalid(action.get("_error", "Unknown tool name"))
+    args = action.get("arguments", {})
+    if not isinstance(args, dict):
+        return invalid("arguments must be an object")
+    if name == "stop_action":
+        return {"name": name, "arguments": {}, "_raw_output": raw}
+    key, count = ("bbox_3d", 6) if name == "add_3d_bbox" else ("point_3d", 3)
+    coords = args.get(key, action.get(key))
+    if not isinstance(coords, (list, tuple)) or len(coords) != count:
+        return invalid(f"{key} must contain exactly {count} integers")
+    if any(isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) or int(v) != v or not 0 <= v <= 999 for v in coords):
+        return invalid("Coordinates must be integers in [0, 999]")
+    normalized = {key: [int(v) for v in coords]}
+    if name == "add_3d_point":
+        label = args.get("point_type", action.get("point_type"))
+        if not isinstance(label, str) or label not in {"positive", "negative"}:
+            return invalid("point_type must be positive or negative")
+        normalized["point_type"] = label
+    return {"name": name, "arguments": normalized, "_raw_output": raw}
 
 
 def denormalize_coord(norm_val: int, dim_size: int) -> int:
@@ -122,7 +166,7 @@ def denormalize_bbox(
 ) -> Tuple[int, int, int, int, int, int]:
     """Denormalize a 3D bounding box from [0, 999] to absolute voxel coordinates.
 
-    Sorts corners to ensure z1 ≤ z2, y1 ≤ y2, x1 ≤ x2, and clamps to volume bounds.
+    Sorts corners to ensure z1 Ã¢â€°Â¤ z2, y1 Ã¢â€°Â¤ y2, x1 Ã¢â€°Â¤ x2, and clamps to volume bounds.
 
     Args:
         bbox_3d: Normalized (z1, y1, x1, z2, y2, x2) in [0, 999].

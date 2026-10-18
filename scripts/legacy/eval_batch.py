@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-MedSAM-Agent3D — Batch evaluation entry point.
+MedSAM-Agent3D â€” Batch evaluation entry point.
 
 Thin wrapper that delegates to ``medsam_agent3d.cli.main_batch``.
 
@@ -16,7 +16,7 @@ import os
 import sys
 
 # Ensure project root on path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from medsam_agent3d.cli import main_batch
 

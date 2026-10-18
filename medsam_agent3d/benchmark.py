@@ -6,7 +6,7 @@ Supports:
 2. SAM-Med3D direct (single bbox or prompt, no agent)
 3. Integration points for other 3D frameworks (nnUNet, TotalSegmentator, etc.)
 
-Output: Per-method metrics table, per-organ breakdown, significance tests.
+Output: failure-aware metrics, matched-case summaries, and per-case trajectories.
 
 Usage:
     python -m medsam_agent3d.benchmark \
@@ -14,7 +14,7 @@ Usage:
         --ts-dir Totalsegmentator_dataset_v201 \
         --model Qwen/Qwen3-VL-8B-Instruct \
         --max-samples 10 \
-        --output-dir benchmark_results
+        --output-dir outputs/benchmarks
 """
 
 import json
@@ -39,6 +39,7 @@ class BenchmarkEntry:
     volume: Optional[np.ndarray] = None
     gt_mask: Optional[np.ndarray] = None
     spacing: Tuple[float, float, float] = (1.0, 1.0, 1.0)
+    affine: Optional[np.ndarray] = None
 
 
 @dataclass
@@ -47,8 +48,8 @@ class MethodResult:
     method: str
     volume_id: str
     target_name: str
-    iou: float = 0.0
-    dice: float = 0.0
+    iou: Optional[float] = None
+    dice: Optional[float] = None
     runtime_sec: float = 0.0
     num_turns: int = 0
     success: bool = False
@@ -64,54 +65,46 @@ class BenchmarkReport:
     results: List[MethodResult] = field(default_factory=list)
     per_method: Dict[str, Dict[str, Any]] = field(default_factory=dict)
     per_organ: Dict[str, Dict[str, Dict[str, Any]]] = field(default_factory=dict)
+    config: Dict[str, Any] = field(default_factory=dict)
 
     def add_result(self, result: MethodResult):
         self.results.append(result)
 
+    @staticmethod
+    def _stats(results):
+        scored = [r for r in results if r.iou is not None and r.dice is not None]
+        ious = [r.iou if r.success else 0.0 for r in scored]
+        dices = [r.dice if r.success else 0.0 for r in scored]
+        return {
+            "num_cases": len(results), "num_successful": sum(r.success for r in results),
+            "num_failed": sum(not r.success for r in results), "num_scored": len(scored),
+            "failure_rate": sum(not r.success for r in results) / len(results) if results else 0.,
+            "mean_iou": float(np.mean(ious)) if ious else 0.,
+            "std_iou": float(np.std(ious)) if ious else 0.,
+            "mean_dice": float(np.mean(dices)) if dices else 0.,
+            "std_dice": float(np.std(dices)) if dices else 0.,
+            "mean_runtime_sec": float(np.mean([r.runtime_sec for r in results])) if results else 0.,
+            "mean_turns": float(np.mean([r.num_turns for r in results])) if results else 0.,
+        }
+
     def compute(self):
-        """Aggregate results into per-method and per-organ statistics."""
-        self.per_method = {}
-        self.per_organ = {}
-
-        # Group by method
-        by_method: Dict[str, List[MethodResult]] = defaultdict(list)
-        for r in self.results:
-            if r.success:
-                by_method[r.method].append(r)
-
-        for method, results in by_method.items():
-            ious = [r.iou for r in results]
-            dices = [r.dice for r in results]
-            times = [r.runtime_sec for r in results]
-            turns = [r.num_turns for r in results if r.num_turns > 0]
-
-            self.per_method[method] = {
-                "num_cases": len(results),
-                "mean_iou": float(np.mean(ious)),
-                "std_iou": float(np.std(ious)),
-                "mean_dice": float(np.mean(dices)),
-                "std_dice": float(np.std(dices)),
-                "mean_runtime_sec": float(np.mean(times)),
-                "mean_turns": float(np.mean(turns)) if turns else 0.0,
-            }
-
-        # Group by organ + method
-        by_organ_method: Dict[str, Dict[str, List[MethodResult]]] = \
-            defaultdict(lambda: defaultdict(list))
-        for r in self.results:
-            if r.success:
-                by_organ_method[r.target_name][r.method].append(r)
-
-        for organ, methods in by_organ_method.items():
-            self.per_organ[organ] = {}
-            for method, results in methods.items():
-                ious = [r.iou for r in results]
-                self.per_organ[organ][method] = {
-                    "num_cases": len(results),
-                    "mean_iou": float(np.mean(ious)),
-                    "std_iou": float(np.std(ious)),
-                }
-
+        """Primary metrics count failed scored cases as zero; retain all denominators."""
+        self.per_method = {method: self._stats([r for r in self.results if r.method == method])
+                           for method in self.methods}
+        self.per_organ = {
+            organ: {method: self._stats([r for r in self.results
+                                        if r.method == method and r.target_name == organ])
+                    for method in self.methods}
+            for organ in sorted({r.target_name for r in self.results})}
+        matched = set.intersection(*[
+            {(r.volume_id, r.target_name) for r in self.results
+             if r.method == method and r.success and r.iou is not None}
+            for method in self.methods]) if self.methods else set()
+        for method in self.methods:
+            values = [r.iou for r in self.results if r.method == method
+                      and (r.volume_id, r.target_name) in matched]
+            self.per_method[method]["matched_successful_cases"] = len(values)
+            self.per_method[method]["matched_mean_iou"] = float(np.mean(values)) if values else None
     def summary_table(self) -> str:
         """Generate a formatted summary table."""
         if not self.per_method:
@@ -126,7 +119,7 @@ class BenchmarkReport:
         lines.append("")
 
         # Header
-        lines.append(f"{'Method':<25} {'Cases':>6} {'IoU':>8} {'IoU_std':>8} "
+        lines.append(f"{'Method':<25} {'Cases':>6} {'Fail':>6} {'Scored':>6} {'IoU':>8} {'IoU_std':>8} "
                      f"{'Dice':>8} {'Dice_std':>8} {'Time(s)':>8} {'Turns':>6}")
         lines.append("-" * 90)
 
@@ -135,7 +128,7 @@ class BenchmarkReport:
             m = self.per_method.get(method, {})
             if m:
                 lines.append(
-                    f"{method:<25} {m.get('num_cases', 0):>6} "
+                    f"{method:<25} {m.get('num_cases', 0):>6} {m.get('num_failed', 0):>6} {m.get('num_scored', 0):>6} "
                     f"{m.get('mean_iou', 0):>8.4f} {m.get('std_iou', 0):>8.4f} "
                     f"{m.get('mean_dice', 0):>8.4f} {m.get('std_dice', 0):>8.4f} "
                     f"{m.get('mean_runtime_sec', 0):>8.1f} {m.get('mean_turns', 0):>6.1f}"
@@ -170,6 +163,7 @@ class BenchmarkReport:
     def to_json(self, path: str):
         """Save benchmark results as JSON."""
         data = {
+            "config": self.config,
             "methods": self.methods,
             "total_cases": self.total_cases,
             "per_method": self.per_method,
@@ -185,11 +179,13 @@ class BenchmarkReport:
                     "num_turns": r.num_turns,
                     "success": r.success,
                     "error": r.error,
+                    "extra": r.extra,
                 }
                 for r in self.results
             ],
         }
-        with open(path, "w") as f:
+        os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
         print(f"Benchmark report saved to {path}")
 
@@ -198,35 +194,51 @@ class BenchmarkReport:
 # Method runners
 # =========================================================================
 
+def _save_prediction(prediction, entry, args, method):
+    from medsam_agent3d.io import save_nifti
+    path = os.path.join(args.output_dir, method, entry.volume_id, entry.target_name, "prediction.nii.gz")
+    save_nifti(prediction.astype(np.uint8), path, affine=entry.affine, reference_path=entry.volume_path)
+    return path
+
+def _model_kwargs(args):
+    from .cli import _build_model_kwargs
+    return _build_model_kwargs(args)
+
+
+def _shared_sam(args):
+    if not hasattr(args, "_sam"):
+        from medsam_agent3d.sam import FrozenSAMMed3D
+        ckpt = getattr(args, "sam_ckpt", None)
+        args._sam = FrozenSAMMed3D(checkpoint_path=ckpt, device=getattr(args, "sam_device", "auto")) if ckpt else FrozenSAMMed3D(device=getattr(args, "sam_device", "auto"))
+    return args._sam
+
 def run_agent_method(entry: BenchmarkEntry, args) -> MethodResult:
     """Run MedSAM-Agent3D (our agentic method)."""
     from medsam_agent3d.agent import QwenVLAgent
     from medsam_agent3d.loop import run_agent_loop
-    from models.sam_med3d_wrapper import FrozenSAMMed3D
+    from medsam_agent3d.sam import FrozenSAMMed3D
 
     t0 = time.time()
 
     try:
-        # Lazy-load models
-        if not hasattr(run_agent_method, "_mllm"):
-            run_agent_method._mllm = QwenVLAgent(
+        # Model initialization is excluded from per-case runtime.
+        if not hasattr(args, "_mllm"):
+            args._mllm = QwenVLAgent(
                 args.model,
-                device_map=getattr(args, "device", "auto"),
+                **_model_kwargs(args),
             )
-        if not hasattr(run_agent_method, "_sam"):
-            ckpt = getattr(args, "sam_ckpt", None)
-            run_agent_method._sam = FrozenSAMMed3D(
-                checkpoint_path=ckpt
-            ) if ckpt else FrozenSAMMed3D()
+        sam = _shared_sam(args)
+        t0 = time.time()
 
         result = run_agent_loop(
-            mllm_agent=run_agent_method._mllm,
-            sam_model=run_agent_method._sam,
+            mllm_agent=args._mllm,
+            sam_model=sam,
             volume=entry.volume,
             gt_mask=entry.gt_mask,
             target_name=entry.target_name,
             volume_id=entry.volume_id,
             spacing=entry.spacing,
+            affine=entry.affine,
             max_turns=args.max_turns,
             output_dir=os.path.join(args.output_dir, "agent", entry.volume_id,
                                     entry.target_name),
@@ -235,8 +247,12 @@ def run_agent_method(entry: BenchmarkEntry, args) -> MethodResult:
         )
 
         runtime = time.time() - t0
+        result.config.update(model_id=args.model, sam_checkpoint=getattr(args, "sam_ckpt", None),
+                             load_in_4bit=getattr(args, 'load_in_4bit', False))
+        from .evaluation import save_case_result
+        save_case_result(result, os.path.join(args.output_dir, 'agent', entry.volume_id, entry.target_name), entry.volume_path)
         return MethodResult(
-            method="MedSAM-Agent3D",
+            method="agent",
             volume_id=entry.volume_id,
             target_name=entry.target_name,
             iou=result.final_iou,
@@ -245,13 +261,14 @@ def run_agent_method(entry: BenchmarkEntry, args) -> MethodResult:
             num_turns=len(result.turns),
             success=result.success,
             error=result.error,
+            extra={'trajectory_path': os.path.join(args.output_dir, 'agent', entry.volume_id, entry.target_name, 'trajectory.json'), 'mask_path': result.mask_path},
         )
 
     except Exception as e:
         import traceback
         traceback.print_exc()
         return MethodResult(
-            method="MedSAM-Agent3D",
+            method="agent",
             volume_id=entry.volume_id,
             target_name=entry.target_name,
             error=str(e),
@@ -259,17 +276,14 @@ def run_agent_method(entry: BenchmarkEntry, args) -> MethodResult:
 
 
 def run_sam_direct_bbox(entry: BenchmarkEntry, args) -> MethodResult:
-    """Run SAM-Med3D with a single center bounding box (no agent)."""
-    from models.sam_med3d_wrapper import FrozenSAMMed3D
+    """Central-volume bbox heuristic; wrapper uses a trained center-point fallback."""
+    from medsam_agent3d.sam import FrozenSAMMed3D
 
     t0 = time.time()
 
     try:
-        if not hasattr(run_sam_direct_bbox, "_sam"):
-            ckpt = getattr(args, "sam_ckpt", None)
-            run_sam_direct_bbox._sam = FrozenSAMMed3D(
-                checkpoint_path=ckpt
-            ) if ckpt else FrozenSAMMed3D()
+        sam = _shared_sam(args)
+        t0 = time.time()
 
         vol = entry.volume
         dz, dy, dx = vol.shape
@@ -280,33 +294,35 @@ def run_sam_direct_bbox(entry: BenchmarkEntry, args) -> MethodResult:
         x1, x2 = int(0.2 * dx), int(0.8 * dx)
         bbox = (z1, y1, x1, z2, y2, x2)
 
-        run_sam_direct_bbox._sam.set_image(vol)
-        pred_mask, _ = run_sam_direct_bbox._sam.predict_mask(
+        sam.set_image(vol, spacing=entry.spacing, affine=entry.affine)
+        pred_mask, _ = sam.predict_mask(
             points=None, labels=None,
             box_3d=bbox,
             mask_logits=None,
         )
 
         from medsam_agent3d.types import compute_metrics
-        iou, dice = compute_metrics(pred_mask, entry.gt_mask)
+        iou, dice = compute_metrics(pred_mask, entry.gt_mask) if entry.gt_mask is not None else (None, None)
         runtime = time.time() - t0
 
         return MethodResult(
-            method="SAM-Med3D (bbox)",
+            method="sam-bbox",
             volume_id=entry.volume_id,
             target_name=entry.target_name,
             iou=iou,
             dice=dice,
             runtime_sec=runtime,
             num_turns=1,
-            success=True,
+            success=bool(np.any(pred_mask)),
+            error='' if np.any(pred_mask) else 'Empty segmentation',
+            extra={'mask_path': _save_prediction(pred_mask, entry, args, 'sam-bbox'), 'prompt_policy': 'central_60_percent_box_with_center_point_fallback', 'uses_ground_truth_prompts': False},
         )
 
     except Exception as e:
         import traceback
         traceback.print_exc()
         return MethodResult(
-            method="SAM-Med3D (bbox)",
+            method="sam-bbox",
             volume_id=entry.volume_id,
             target_name=entry.target_name,
             error=str(e),
@@ -315,47 +331,46 @@ def run_sam_direct_bbox(entry: BenchmarkEntry, args) -> MethodResult:
 
 def run_sam_direct_point(entry: BenchmarkEntry, args) -> MethodResult:
     """Run SAM-Med3D with a single center point (no agent)."""
-    from models.sam_med3d_wrapper import FrozenSAMMed3D
+    from medsam_agent3d.sam import FrozenSAMMed3D
 
     t0 = time.time()
 
     try:
-        if not hasattr(run_sam_direct_point, "_sam"):
-            ckpt = getattr(args, "sam_ckpt", None)
-            run_sam_direct_point._sam = FrozenSAMMed3D(
-                checkpoint_path=ckpt
-            ) if ckpt else FrozenSAMMed3D()
+        sam = _shared_sam(args)
+        t0 = time.time()
 
         vol = entry.volume
         center = (vol.shape[0] // 2, vol.shape[1] // 2, vol.shape[2] // 2)
 
-        run_sam_direct_point._sam.set_image(vol)
-        pred_mask, _ = run_sam_direct_point._sam.predict_mask(
+        sam.set_image(vol, spacing=entry.spacing, affine=entry.affine)
+        pred_mask, _ = sam.predict_mask(
             points=[center], labels=[1],
             box_3d=None,
             mask_logits=None,
         )
 
         from medsam_agent3d.types import compute_metrics
-        iou, dice = compute_metrics(pred_mask, entry.gt_mask)
+        iou, dice = compute_metrics(pred_mask, entry.gt_mask) if entry.gt_mask is not None else (None, None)
         runtime = time.time() - t0
 
         return MethodResult(
-            method="SAM-Med3D (point)",
+            method="sam-point",
             volume_id=entry.volume_id,
             target_name=entry.target_name,
             iou=iou,
             dice=dice,
             runtime_sec=runtime,
             num_turns=1,
-            success=True,
+            success=bool(np.any(pred_mask)),
+            error='' if np.any(pred_mask) else 'Empty segmentation',
+            extra={'mask_path': _save_prediction(pred_mask, entry, args, 'sam-point'), 'prompt_policy': 'volume_center_point', 'uses_ground_truth_prompts': False},
         )
 
     except Exception as e:
         import traceback
         traceback.print_exc()
         return MethodResult(
-            method="SAM-Med3D (point)",
+            method="sam-point",
             volume_id=entry.volume_id,
             target_name=entry.target_name,
             error=str(e),
@@ -366,10 +381,49 @@ def run_sam_direct_point(entry: BenchmarkEntry, args) -> MethodResult:
 # Method registry
 # =========================================================================
 
+def run_sam_oracle(entry, args):
+    """Ground-truth error clicks: an explicitly privileged refinement baseline."""
+    from scipy.ndimage import distance_transform_edt
+    from .types import compute_metrics
+    start = time.time()
+    try:
+        if entry.gt_mask is None or not np.any(entry.gt_mask):
+            raise ValueError("Oracle clicks require a nonempty ground truth mask")
+        sam = _shared_sam(args)
+        start = time.time()
+        sam.set_image(entry.volume, spacing=entry.spacing, affine=entry.affine)
+        prediction = np.zeros(entry.volume.shape, dtype=bool)
+        points, labels, trajectory, logits = [], [], [], None
+        for turn in range(args.max_turns):
+            missing = np.logical_and(entry.gt_mask, ~prediction.astype(bool))
+            excess = np.logical_and(~entry.gt_mask.astype(bool), prediction)
+            # Padding ensures distance is measured to background at every edge.
+            positive = distance_transform_edt(np.pad(missing, 1), sampling=entry.spacing)[1:-1, 1:-1, 1:-1]
+            negative = distance_transform_edt(np.pad(excess, 1), sampling=entry.spacing)[1:-1, 1:-1, 1:-1]
+            label = int(positive.max() >= negative.max())
+            distance = positive if label else negative
+            if not distance.max():
+                break
+            point = tuple(int(v) for v in np.unravel_index(distance.argmax(), distance.shape))
+            points.append(point)
+            labels.append(label)
+            prediction, logits = sam.predict_mask(points=points, labels=labels, box_3d=None, mask_logits=logits)
+            iou, dice = compute_metrics(prediction, entry.gt_mask)
+            trajectory.append({"turn": turn + 1, "point": point, "label": label, "iou": iou, "dice": dice})
+        iou, dice = compute_metrics(prediction, entry.gt_mask)
+        return MethodResult(method="sam-oracle", volume_id=entry.volume_id, target_name=entry.target_name,
+            iou=iou, dice=dice, runtime_sec=time.time()-start, num_turns=len(trajectory), success=True,
+            extra={"uses_ground_truth_prompts": True, "turns": trajectory,
+                   "mask_path": _save_prediction(prediction, entry, args, "sam-oracle")})
+    except Exception as exc:
+        return MethodResult(method="sam-oracle", volume_id=entry.volume_id,
+                            target_name=entry.target_name, error=str(exc), runtime_sec=time.time()-start)
+
 METHOD_REGISTRY = {
     "agent": run_agent_method,
     "sam-bbox": run_sam_direct_bbox,
     "sam-point": run_sam_direct_point,
+    "sam-oracle": run_sam_oracle,
     # Add more methods here:
     # "nnunet": run_nnunet,
     # "totalsegmentator": run_total_segmentator,
@@ -403,27 +457,59 @@ def run_benchmark(
         print(f"Available: {list(METHOD_REGISTRY.keys())}")
         sys.exit(1)
 
+    from .evaluation import runtime_provenance, checkpoint_provenance
     report = BenchmarkReport(
         methods=methods,
         total_cases=len(entries),
+        config={key: value for key, value in vars(args).items() if not key.startswith('_')},
     )
 
+    report.config["environment"] = runtime_provenance()
+    report.config['sam_weights'] = checkpoint_provenance(getattr(args, 'sam_ckpt', None))
     for i, entry in enumerate(entries):
         print(f"\n{'='*60}")
         print(f"Case [{i+1}/{len(entries)}]: {entry.volume_id}/{entry.target_name}")
         print(f"{'='*60}")
 
+        loaded_here = entry.volume is None
+        load_error = ""
+        if loaded_here:
+            try:
+                from medsam_agent3d.io import load_nifti
+                entry.volume, entry.spacing, entry.affine = load_nifti(entry.volume_path, return_affine=True)
+                if entry.mask_path:
+                    entry.gt_mask, _, _ = load_nifti(entry.mask_path, return_affine=True,
+                        reference_path=entry.volume_path, is_label=True)
+                    entry.gt_mask = (entry.gt_mask > 0).astype(np.uint8)
+            except Exception as exc:
+                load_error = str(exc)
         for method_key in methods:
             method_fn = METHOD_REGISTRY[method_key]
             print(f"\n  Running {method_key}...")
-            result = method_fn(entry, args)
+            from .cli import seed_everything
+            seed_everything(args.seed)
+            try:
+                if load_error:
+                    raise ValueError(load_error)
+                result = method_fn(entry, args)
+            except Exception as exc:
+                result = MethodResult(method=method_key, volume_id=entry.volume_id,
+                                      target_name=entry.target_name, error=str(exc))
+            result.method = method_key
+            if (entry.gt_mask is not None or entry.mask_path) and not result.success:
+                result.iou, result.dice = 0.0, 0.0
+            if hasattr(args, "_sam"):
+                result.extra['sam_device'] = str(args._sam.device)
             report.add_result(result)
 
-            if result.success:
+            if result.success and result.iou is not None:
                 print(f"    IoU={result.iou:.4f}, Dice={result.dice:.4f}, "
                       f"Time={result.runtime_sec:.1f}s, Turns={result.num_turns}")
-            else:
+            elif not result.success:
                 print(f"    FAILED: {result.error}")
+
+        if loaded_here:
+            entry.volume, entry.gt_mask = None, None
 
     # Compute aggregate stats
     report.compute()
@@ -467,7 +553,8 @@ def main():
         "--max-samples", type=int, default=10,
         help="Maximum samples when using --ts-dir",
     )
-    parser.add_argument("--shuffle", action="store_true", default=True)
+    parser.add_argument("--shuffle", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument('--split', choices=['train', 'val', 'test', 'all'], default='test')
 
     # Model config
     parser.add_argument(
@@ -479,21 +566,25 @@ def main():
         help="Path to SAM-Med3D checkpoint",
     )
     parser.add_argument("--device", default="auto")
+    parser.add_argument('--sam-device', choices=['auto', 'cpu', 'cuda'], default='auto')
     parser.add_argument("--load-in-4bit", action="store_true")
 
     # Loop config
     parser.add_argument("--max-turns", type=int, default=5)
     parser.add_argument("--temperature", type=float, default=0.1)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--output-dir", default="benchmark_results")
+    parser.add_argument("--output-dir", default="outputs/benchmarks")
 
     args = parser.parse_args()
+    from .cli import seed_everything, _validate_args
+    _validate_args(parser, args)
+    seed_everything(args.seed)
 
     # --- Resolve methods ---
     if "all" in args.method or not args.method:
         methods = list(METHOD_REGISTRY.keys())
     else:
-        methods = args.method
+        methods = list(dict.fromkeys(args.method))
 
     print(f"Benchmark methods: {methods}")
 
@@ -502,62 +593,34 @@ def main():
 
     if args.ts_dir:
         # TotalSegmentator dataset
-        from utils.io_utils import get_totalsegmentator_dataset, load_nifti
+        from medsam_agent3d.io import get_totalsegmentator_dataset, load_nifti
 
-        dataset = get_totalsegmentator_dataset(args.ts_dir)
+        dataset = get_totalsegmentator_dataset(args.ts_dir, split=None if args.split == "all" else args.split)
         if args.shuffle:
             import random
             random.shuffle(dataset)
         dataset = dataset[:args.max_samples]
 
         for d in dataset:
-            vol, spacing = load_nifti(d["ct_path"])
-            mask, _ = load_nifti(d["mask_path"])
-            mask = (mask > 0).astype(np.uint8)
-            if mask.sum() == 0:
-                continue
-            entries.append(BenchmarkEntry(
-                volume_path=d["ct_path"],
-                mask_path=d["mask_path"],
-                target_name=d["target_name"],
-                volume_id=d["volume_id"],
-                volume=vol,
-                gt_mask=mask,
-                spacing=spacing,
-            ))
-
+            entries.append(BenchmarkEntry(volume_path=d["volume_path"], mask_path=d["mask_path"],
+                target_name=d["target_name"], volume_id=d["volume_id"]))
     elif args.volume:
-        # User-provided volumes
-        from utils.io_utils import load_nifti
-
+        if args.mask and len(args.mask) != len(args.volume):
+            parser.error("--mask count must match --volume count")
+        if args.target and len(args.target) != len(args.volume):
+            parser.error("--target count must match --volume count")
         masks = args.mask or [None] * len(args.volume)
         targets = args.target or ["organ"] * len(args.volume)
-
-        for i, vol_path in enumerate(args.volume):
-            vol, spacing = load_nifti(vol_path)
-            mask, _ = load_nifti(masks[i]) if masks[i] else (None, None)
-            if mask is not None:
-                mask = (mask > 0).astype(np.uint8)
-            vol_id = os.path.splitext(os.path.basename(vol_path))[0]
-            vol_id = vol_id.replace(".nii", "").replace(".gz", "")
-            entries.append(BenchmarkEntry(
-                volume_path=vol_path,
-                mask_path=masks[i] if masks else "",
-                target_name=targets[i],
-                volume_id=vol_id,
-                volume=vol,
-                gt_mask=mask,
-                spacing=spacing,
-            ))
-
+        for path, mask, target in zip(args.volume, masks, targets):
+            entries.append(BenchmarkEntry(volume_path=path, mask_path=mask, target_name=target,
+                volume_id=os.path.basename(path).replace(".nii.gz", "").replace(".nii", "")))
     if not entries:
         print("ERROR: No entries found. Provide --ts-dir or --volume/--mask.")
         sys.exit(1)
 
     print(f"Evaluation cases: {len(entries)}")
     for e in entries:
-        print(f"  {e.volume_id}/{e.target_name}  vol={e.volume.shape}  "
-              f"mask_voxels={int(e.gt_mask.sum()):,}" if e.gt_mask is not None else "")
+        print(f"  {e.volume_id}/{e.target_name}")
 
     # --- Run benchmark ---
     os.makedirs(args.output_dir, exist_ok=True)
@@ -569,6 +632,8 @@ def main():
     # --- Save ---
     report.to_json(os.path.join(args.output_dir, "benchmark_report.json"))
 
+    if any(not result.success for result in report.results):
+        raise SystemExit(1)
     return report
 
 

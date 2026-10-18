@@ -1,0 +1,15 @@
+# Install a matching torch/torchvision pair for your platform first if using CUDA.
+torch>=2.2.0
+torchvision>=0.17.0
+# Qwen3-VL support starts in Transformers 4.57.
+transformers>=4.57.0,<5
+accelerate>=1.0.0
+qwen-vl-utils>=0.0.14
+nibabel>=5.0.0
+numpy>=1.24.0
+scipy>=1.10.0
+torchio>=0.19.0
+opencv-python-headless>=4.8.0
+Pillow>=10.0.0
+tqdm>=4.64.0
+huggingface-hub>=0.34.0

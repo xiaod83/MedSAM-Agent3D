@@ -1,47 +1,35 @@
-# Python
+﻿# Python environments and caches
+.venv/
+venv/
+.cache/
+.pytest_cache/
 __pycache__/
-*.pyc
-*.pyo
+*.py[cod]
 *.egg-info/
 *.egg
-dist/
-build/
 .eggs/
+build/
+dist/
 
-# Large data files
-*.nii.gz
-*.nii
-*.npy
-*.npz
-
-# Model checkpoints
+# Model weights and scan arrays
 *.pth
 *.pt
 *.bin
 *.safetensors
+*.nii
+*.nii.gz
+*.npy
+*.npz
 
-# Generated outputs
-data/images/
-data/trajectories/
-data/sft_dataset.jsonl
-data/rl_temp/
-data/dummy_dataset/
+# Generated and preserved experiment artifacts
+outputs/*
+!outputs/README.md
 
-# Training outputs
-models/sft_output/
-models/rl_output/
-
-# IDE
+# Local secrets and editor state
+.env
 .idea/
 .vscode/
 *.swp
 *.swo
-
-# OS
 .DS_Store
 Thumbs.db
-
-# Environment
-.env
-venv/
-.venv/

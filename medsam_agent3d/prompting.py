@@ -16,13 +16,18 @@ from typing import List, Optional, Tuple
 
 # Tool function definitions (JSON schema for Qwen3-VL tool calling)
 TOOL_DEFINITIONS = [
+    {"type": "function", "function": {
+        "name": "navigate", "description": "Inspect slices through a different 3D intersection without changing segmentation.",
+        "parameters": {"type": "object", "properties": {"point_3d": {
+            "type": "array", "items": {"type": "integer", "minimum": 0, "maximum": 999},
+            "minItems": 3, "maxItems": 3}}, "required": ["point_3d"]}}},
     {
         "type": "function",
         "function": {
             "name": "add_3d_bbox",
             "description": (
                 "Add a 3D bounding box to initialize the segmentation of a "
-                "target organ. Use this on the first turn to define the rough "
+                "target organ. This uses a positive center point if the checkpoint has no trained box embeddings. Define the rough "
                 "location and extent of the target."
             ),
             "parameters": {
@@ -175,4 +180,4 @@ For each function call, return a json object with function name and arguments wi
 
 Only use the provided functions to complete your task. Do not invent or assume any other functions. Carefully consider the current mask state and the tri-view slices before each action.
 
-Remember: the three views are [Axial | Coronal | Sagittal] from left to right. The center of each view corresponds to the focus point in 3D. Use this spatial understanding to place accurate 3D coordinates."""
+Remember: the three views are [Axial | Coronal | Sagittal] from left to right. Each panel shows a full slice, not a crop centered at the focus. Cyan crosshairs mark the current focus intersection, whose normalized coordinates are included in each request. Axial: X increases right, Y down. Coronal: X increases right, Z down. Sagittal: Y increases right, Z down. Panel coordinate endpoints are 0 and 999, excluding headers and padding. Use navigate with point_3d to inspect other slices when the target is not visible. Initialize with a positive foreground point; stop only after producing a nonempty segmentation. Never infer anatomical left/right from an unspecified display convention."""
