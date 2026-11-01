@@ -21,11 +21,6 @@ flowchart LR
 
 The agent can inspect another slice intersection, add positive or negative prompts, and stop. Ground-truth masks are optional during inference and are used for scoring rather than choosing the agent's prompts. A separate checkpoint smoke test uses a reference-derived prompt to check the SAM integration.
 
-## Evaluation status
-
-The existing experiment notes report **Dice 0.857 and IoU 0.750** on one left-femur case using the four-bit Qwen3.8-27B Colab pipeline. This is a single development result, not an estimate of performance across patients or organs.
-
-The notebook also defines a reproducible development suite: two additional test-split scans, six structures per scan, and 12 scan/target pairs. Aggregate results for that suite are not reported here. See [evaluation details and limitations](docs/EVALUATION.md).
 
 ## Try the project
 
