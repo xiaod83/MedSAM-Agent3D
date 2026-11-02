@@ -18,6 +18,7 @@ After source changes, rebuild from this folder and upload the new ZIP:
 
 Bundle creation needs the local TotalSegmentator dataset, including `meta.csv`. A fresh clone does not include scans or weights. The builder selects two test-split subjects with seed 42, excluding `s0000`, and checks all six masks contain foreground. The notebook downloads and verifies the official SAM checkpoint.
 
+<<<<<<< HEAD
 ## Find results
 
 - **Colab:** `/content/MedSAM-Agent3D/outputs/notebook/<run-id>/`; download `outputs/notebook_<run-id>.zip` through **Colab ? Contents** before the runtime disappears.
@@ -25,6 +26,8 @@ Bundle creation needs the local TotalSegmentator dataset, including `meta.csv`. 
 - Each suite run exports `case_scores.csv`, all-case and per-organ scores, masks, PNGs, logs and action histories. Execution failures count as zero in the reported averages.
 
 ## Local commands
+=======
+>>>>>>> d634889b28ac97e62c3fcbe9cee2edf5fca3f536
 
 Use Python 3.11 and run commands from this folder. With an activated environment:
 
