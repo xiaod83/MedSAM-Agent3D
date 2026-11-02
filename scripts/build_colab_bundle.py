@@ -129,8 +129,7 @@ def main(argv=None):
         files.update(path for path in (ROOT / folder).rglob('*.py') if '__pycache__' not in path.parts)
     for name in ('run.py', 'requirements/base.txt', 'notebooks/colab_runner.py',
                  'notebooks/colab.ipynb', 'requirements.txt', 'requirements/dev.txt',
-                 'requirements/quantized.txt', 'requirements/qwen38.txt', 'pytest.ini', 'README.md', 'docs/DEVELOPMENT.md',
-                 'notebooks/README.md', 'scripts/README.md', 'data/README.md', 'checkpoints/README.md',
+                 'requirements/quantized.txt', 'requirements/qwen38.txt', 'pytest.ini', 'README.md',
                  'data/Totalsegmentator_dataset_v201/s0000/ct.nii.gz',
                  'data/Totalsegmentator_dataset_v201/s0000/segmentations/femur_left.nii.gz'):
         path = ROOT / name

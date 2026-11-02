@@ -24,7 +24,6 @@ dist/
 # Generated and preserved experiment artifacts
 /notebook_*.zip
 outputs/*
-!outputs/README.md
 
 # Local secrets and editor state
 .env
